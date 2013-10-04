@@ -1,0 +1,266 @@
+#!/bin/sh
+set -e
+
+if [ ! `which virtualenv` ];then
+    echo "virtualenv not found, (eg.sudo apt-get install python-virtualenv)"
+    exit
+fi
+
+envdir=
+envbindir=
+envpip=
+envpython=
+envlib=
+envdocdir=
+sourcefile=
+cachedir="$HOME/.pypi"
+
+if [ ! -d $cachedir ]; then
+    mkdir -p $cachedir
+    alert="$cachedir/alert.txt"
+    echo "This directory was created by orb as a download cache." > $alert
+    echo "You can delete this file." >> $alert
+fi
+
+locate_environment () {
+    dir=`pwd`
+    until [ "$dir" = "/" ]; do
+        f="$dir/.orb"
+        if [ -f $f ]; then
+            sourcefile="$f"
+            envdir="$dir"
+            envbindir="$envdir/bin"
+            envpip="$envbindir/pip"
+            envpython="$envbindir/python"
+            envlib=`$envpython -c "from distutils.sysconfig import get_python_lib;print(get_python_lib())"`
+            envdocdir="$dir/doc"
+            return
+        fi
+        dir=`dirname $dir`
+    done
+    echo "not a virtual environment"
+    exit 1
+}
+
+orbname=
+
+canonical_name () {
+    #make absolute
+    dir=`dirname $1`
+    name=`basename $1`
+    orbname="`cd $dir; pwd`/$name"
+}
+
+usage () {
+    echo "orb - virtualenv and pip facade"
+    echo ""
+    echo "First create a new environment with 'orb init [dest]', then"
+    echo "'cd dest.orb' and begin installing with 'orb install [package]'"
+    echo ""
+    echo "Usage:"
+    echo "    orb init [DEST_DIRECTORY]"
+    echo "      - create a new virtualenv with --python=python"
+    echo ""
+    echo "    orb init2 [DEST_DIRECTORY]"
+    echo "      - create a new virtualenv with --python=python2"
+    echo ""
+    echo "    orb init3 [DEST_DIRECTORY]"
+    echo "      - create a new virtualenv with --python=python3"
+    echo ""
+    echo "    orb init?.? [DEST_DIRECTORY]"
+    echo "      - create a new virtualenv with --python=python?.?"
+    echo ""
+    echo "    orb install [PYTHON_PACKAGE]"
+    echo "      - install a package to the current environment with pip"
+    echo ""
+    echo "    orb ls"
+    echo "      - list contents of current environment's site-packages directory"
+    echo ""
+    echo "    orb lib"
+    echo "      - echo path of current environment's site-packages directory"
+    echo ""
+    echo "    orb link [PYTHON_PACKAGE]"
+    echo "      - symlink to a system python package"
+    echo ""
+    echo "    orb download PACKAGE [DEST]"
+    echo "      - download a package from pypi, but don't install"
+    echo ""
+    echo "    orb *.py [OPTIONS]"
+    echo "      - run a python script using the env's python"
+    echo ""
+    echo "    orb [ANY SHELL COMMAND]"
+    echo "      - activate the environment then run the command"
+}
+
+case "$1" in
+init)
+    pyversion=`python -c "import sys;print('%s.%s' % sys.version_info[:2])"`
+    shift
+    orb init$pyversion $@
+;;
+init2)
+    pyversion=`python2 -c "import sys;print('%s.%s' % sys.version_info[:2])"`
+    shift
+    orb init$pyversion $@
+;;
+init3)
+    pyversion=`python3 -c "import sys;print('%s.%s' % sys.version_info[:2])"`
+    shift
+    orb init$pyversion $@
+;;
+init?.?)
+    pyversion=`echo $1 | sed -n "s/init\([2-3]\.[0-9]\)/\1/p"`
+    if [ ! $pyversion ]; then
+        echo >&2 "invalid python version"
+        exit 1
+    fi
+    pyexe="python$pyversion"
+    command -v $pyexe >/dev/null 2>&1 || { echo >&2 "$pyexe not found"; exit 1; }
+    #pyexe=`which $pyexe`
+    shift
+    if [ ! $1 -o $1 = "--help" ]; then
+        orb --help
+        exit
+    fi
+    canonical_name $1
+    fname="$orbname/.orb"
+    shift
+    if [ ! -f $fname ]; then
+        echo ""
+        echo ":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::"
+        echo " virtualenv --python=$pyexe $orbname"
+        echo ":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::"
+        echo ""
+        virtualenv --python=$pyexe $orbname
+        touch $fname
+    fi
+    if [ ! -x "$orbname/bin/pip" ]; then
+        echo ""
+        echo ":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::"
+        echo " $orbname/bin/easy_install pip"
+        echo ":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::"
+        echo ""
+        $orbname/bin/easy_install pip
+    fi
+;;
+install)
+    locate_environment
+    shift
+    echo ""
+    echo ":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::"
+    echo " pip install $@"
+    echo ":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::"
+    echo ""
+    $envbindir/pip install --download-cache=$cachedir "$@"
+;;
+uninstall)
+    locate_environment
+    shift
+    echo ""
+    echo ":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::"
+    echo " pip uninstall $@"
+    echo ":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::"
+    echo ""
+    $envbindir/pip uninstall "$@"
+;;
+download)
+    locate_environment
+    shift
+    if [ ! $1 ]; then
+        echo "orb: ERROR - please specify a package to download"
+        exit 1
+    fi
+    if [ ! $2 ]; then
+        dest="."
+    else
+        dest="$2"
+        if [ ! -d $dest ]; then
+            echo "orb: ERROR - directory does not exist $dest"
+            exit 1
+        fi
+    fi
+    echo "orb: downloading $1"
+    $envpip install $1 --download-cache=$cachedir --download=$dest
+    ;;
+lib)
+    locate_environment
+    echo "$envlib"
+    ;;
+ls)
+    locate_environment
+    for f in `ls $envlib`; do
+        fname=`basename $f`
+        case $fname in
+            *.pth)
+                continue;;
+            *.egg-info)
+                continue;;
+            *)
+                echo $fname;;
+        esac
+    done
+    ;;
+link)
+    # link to a system package or module
+    locate_environment
+    shift
+    ver=`$envpython -c "import sys;print('%s.%s' % sys.version_info[:2])"`
+    for m in $@; do
+        m=`echo $m | sed "s/\.py$//g"`
+        src=`python$ver -c "import $m;print($m.__file__)" | sed "s/\.pyc$/\.py/g" | sed "s/\/__init__\.py$//g"`
+        if [ ! $src ]; then
+            echo "not found: $m"
+            exit 1
+        fi
+        dst="$envlib/`basename $src`"
+        if [ ! -h $dst ]; then
+            echo "linking $src"
+            ln -s $src $dst
+        fi
+    done
+;;
+rm)
+    # remove item from env site-packages
+    locate_environment
+    shift
+    for m in $@; do
+        rm -rf $envlib/$m*
+    done
+;;
+home)
+    locate_environment
+    echo $envdir
+;;
+parent)
+    cd `orb home`
+    cd ..
+    echo `pwd`
+;;
+test)
+    locate_environment
+    shift
+    $envbindir/nosetests --with-doctest "$@"
+;;
+"--help")
+    usage
+;;
+"")
+    usage
+;;
+*)
+    locate_environment
+    ext=`echo $1 | sed 's/.*\.//g'`
+    if [ -f $1 ] && [ $ext = "py" ]; then
+        $envbindir/python "$@"
+    #elif [ -f "$envbindir/$1" ]; then
+    #    $envbindir/$@
+    else
+        export VIRTUAL_ENV=$envdir
+        export PATH="$VIRTUAL_ENV/bin:$PATH"
+        unset PYTHON_HOME
+        eval "$@"
+    fi
+    ;;
+esac
+
+

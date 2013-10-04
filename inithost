@@ -1,0 +1,75 @@
+#!/bin/sh
+
+set -e
+
+host="$1"
+
+if [ ! "$host" ]; then
+    echo "host required, eg. inithost 10.10.10.10"
+    exit 1
+fi
+ip=$(echo "$host" | sed "s/:.*//")
+port=$(echo "$host" | sed "s/.*://")
+
+if [ "$port" = "$host" ]; then
+    port=22
+fi
+
+if [ ! -e remote-keys.zip ]; then
+    echo "no ssh key pairs found - have you run ./keygen ?"
+    exit 1
+fi
+
+pass1=
+pass2=
+
+echo -n "Password for admin user (leave blank for passwordless auth only) :"
+
+stty -echo
+read pass1
+stty echo
+echo ""
+
+if [ "$pass1" != "" ]; then
+    echo -n "Repeat password: "
+
+    stty -echo
+    read pass2
+    stty echo
+    echo ""
+
+    if [ "$pass1" != "$pass2" ];then
+        echo "ERROR: passwords didn't match"
+        exit 1
+    else
+        echo "$pass1" > .adminpass
+    fi
+fi
+
+# tar files
+mkdir build
+cp tools/prepare_ubuntu.sh build
+cp tools/pg_hba.conf build
+cp tools/orb build
+cp remote-keys.zip build
+if [ -e .adminpass ]; then
+    cp .adminpass build
+fi
+cd build
+tar -cf prepare_ubuntu.tar *
+cd ..
+mv build/prepare_ubuntu.tar .
+rm -rf build
+
+#copy to remote server
+echo ":: copying files to host"
+scp -P $port prepare_ubuntu.tar root@$host:~
+rm -rf prepare_ubuntu.tar
+
+# copy deployer key to local ~/.ssh
+echo ":: unpacking deployer keys"
+rm -rf local-keys
+unzip local-keys.zip
+cp local-keys/* ~/.ssh/
+rm -rf local-keys
+

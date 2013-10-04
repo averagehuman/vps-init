@@ -1,0 +1,62 @@
+#!/bin/sh
+
+set -e
+
+dir1=remote-keys
+dir2=local-keys
+comment1="admin key - copy public/private pair to remote host and public key to repository provider, eg. github"
+comment2="deployer key - copy public/private pair to local .ssh directory and public key to remote authorized_keys file"
+pass1=
+pass2=
+provider="codebasehq.com"
+
+for d in $dir1 $dir2; do
+    if [ -e $d ]; then
+        rm -rf $d
+    fi
+    mkdir $d
+done
+
+if [ -e .passphrase ]; then
+    pass1=$(tr -d '\n' < .passphrase)
+else
+    echo -n "Passphrase: "
+
+    stty -echo
+    read pass1
+    stty echo
+    echo ""
+
+    echo -n "Passphrase (again): "
+
+    stty -echo
+    read pass2
+    stty echo
+    echo ""
+
+    if [ "$pass1" != "$pass2" ];then
+        echo "ERROR: passphrases didn't match"
+        exit 1
+    fi
+fi
+
+ssh-keygen -q -C "$comment1" -f $dir1/admin.key -P "$pass1"
+ssh-keygen -q -C "$comment2" -f $dir2/deployer.key -P ""
+
+cp $dir2/deployer.key.pub $dir1/authorized_keys
+
+echo "" > $dir1/config
+echo "Host $provider" >> $dir1/config
+echo "IdentityFile ~/.ssh/admin.key" >> $dir1/config
+echo "" >> $dir1/config
+
+for d in $dir1 $dir2; do
+    if [ -e $d.zip ]; then
+        mv $d.zip $d.old.zip
+    fi
+    zip -r -0 -e -P "$pass1" -q $d.zip $d
+done
+
+rm -rf $dir1
+rm -rf $dir2
+
