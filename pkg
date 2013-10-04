@@ -1,0 +1,10 @@
+#!/usr/bin/env python
+
+with open('tools/prepare_ubuntu.sh') as script:
+    prepare_ubuntu = ''.join('    ' + line for line in script)
+    with open('docs/README.template.rst') as template:
+        text = template.read() % {'prepare_ubuntu': prepare_ubuntu}
+        with open('README.rst', 'w') as readme:
+            readme.write(text)
+
+
