@@ -55,7 +55,7 @@ usage () {
     echo "orb - virtualenv and pip facade"
     echo ""
     echo "First create a new environment with 'orb init [dest]', then"
-    echo "'cd dest.orb' and begin installing with 'orb install [package]'"
+    echo "'cd [dest]' and begin installing with 'orb install [package]'"
     echo ""
     echo "Usage:"
     echo "    orb init [DEST_DIRECTORY]"
