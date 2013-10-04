@@ -44,9 +44,12 @@ Prepare Remote Host
        [remote] $ ./prepare_ubuntu.sh
 
    This will create the ``admin`` user, install some basic tools (postgres, vim, etc...),
-   and end by updating the ``sshd`` config. MAKE A NOTE OF THE UPDATED SSHD PORT
-   NUMBER AND UPDATE YOUR ``LOCAL`` SSH CONFIG FILE ACCORDINGLY - for example, by including
-   a stanza similar to::
+   and end by updating the ``sshd`` config.
+   
+   **MAKE A NOTE OF THE UPDATED SSHD PORT NUMBER AND UPDATE YOUR *LOCAL* SSH
+   CONFIG FILE ACCORDINGLY**
+   
+   For example, include a stanza similar to::
 
         Host <HOST>
         HostName <IP-ADDRESS>
