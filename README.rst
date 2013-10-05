@@ -94,7 +94,7 @@ Prepare Remote Host
 tools/prepare_ubuntu.sh
 -----------------------
 
-The main provisioning script::
+::
 
     #!/bin/sh
     
