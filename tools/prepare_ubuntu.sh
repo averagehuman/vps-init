@@ -5,12 +5,15 @@ set -e
 pg_version="9.1"
 
 ###############################################################################
-# create admin user
+# create admin and www users
 ###############################################################################
 groupadd -r -f admin
+groupadd -r -f www
+if [ ! $(grep '^www:' /etc/passwd) ]; then
+    useradd -r -m -d /var/www -s /bin/bash -g www www
+fi
 if [ ! $(grep '^admin:' /etc/passwd) ]; then
-    useradd -r -m -g admin admin
-    chsh -s /bin/bash admin
+    useradd -r -m -s /bin/bash -g admin -G www admin
 fi
 if [ ! -d /home/admin/.ssh ]; then
     mkdir /home/admin/.ssh
@@ -26,6 +29,19 @@ else
     # ssh-only authentication
     passwd -l admin
 fi
+
+###############################################################################
+# create static folders
+###############################################################################
+
+mkdir -p /srv
+for d in static media; do
+    mkdir -p /var/www/$d
+    chown www:www /var/www/$d
+    ln -s /var/www/$d /srv/$d
+done
+
+
 
 ###############################################################################
 # update sudoers file
