@@ -31,6 +31,19 @@ else
 fi
 
 ###############################################################################
+# ssh key setup
+###############################################################################
+cp ssh_config /home/admin/.ssh
+cp authorized_keys /home/admin/.ssh
+if [ -e server-admin-keys.zip ]; then
+    echo ":: unpacking ssh keys"
+    unzip server-admin-keys.zip
+    cp server-admin-keys/* /home/admin/.ssh/
+    rm -rf server-admin-keys
+fi
+chown -R admin:admin /home/admin/.ssh
+
+###############################################################################
 # create static folders
 ###############################################################################
 
@@ -86,16 +99,23 @@ apt-get -y update
 apt-get -y dist-upgrade
 apt-get -y install linux-headers-$(uname -r) build-essential
 apt-get -y install postgresql libpq-dev
-apt-get -y install python-dev python-virtualenv
+apt-get -y install python-dev
 apt-get -y install vim git-core ufw unzip
 apt-get -y clean
 
-# remove setuptools
-#command dpkg -s python-setuptools >/dev/null 2>&1
-#if [ $? -eq 0 ]; then
-#    echo ":: removing setuptools"
-#    apt-get -y remove python-setuptools
-#fi
+
+###############################################################################
+# get more recent setuptools, pip and virtualenv than system defaults
+###############################################################################
+# use default easy_install to install latest pip
+apt-get -y install python-setuptools
+easy_install pip
+# get latest setuptools
+pip install -U setuptools
+# remove default setuptools
+apt-get -y remove python-setuptools
+# get latest virtualenv
+pip install virtualenv
 
 ###############################################################################
 # install orb (virtualenv utility)
@@ -139,20 +159,15 @@ chmod 640 /etc/postgresql/$pg_version/main/pg_hba.conf
 sed -i -e "s/#listen_addresses.*/listen_addresses = 'localhost'/" /etc/postgresql/$pg_version/main/postgresql.conf
 
 ###############################################################################
-# ssh key setup
+# install devpi-server
 ###############################################################################
-echo ":: unpacking ssh keys"
-unzip remote-keys.zip
-cp remote-keys/* /home/admin/.ssh/
-rm -rf remote-keys
-chown -R admin:admin /home/admin/.ssh
-
-sshport=$(python -c "from random import randint; print randint(10000,30000)")
-sed -i.orig -e "s/^Port .*/Port $sshport/g" /etc/ssh/sshd_config
 
 ###############################################################################
 # enable ufw
 ###############################################################################
+sshport=$(python -c "from random import randint; print randint(10000,30000)")
+sed -i.orig -e "s/^Port .*/Port $sshport/g" /etc/ssh/sshd_config
+
 ufw default deny incoming
 ufw allow http
 ufw allow $sshport

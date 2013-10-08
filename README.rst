@@ -67,18 +67,19 @@ Prepare Remote Host
 
        [local] $ ssh admin@<HOST or IP_ADDRESS>
 
-   The login should be passwordless, if you *are* prompted for a password or
-   passphrase, then check that the remote ``/home/admin/.ssh`` directory looks ok,
-   eg. that file permissions and ownership are correct. Also check that
+   If there are problems then check that the remote ``/home/admin/.ssh`` directory
+   looks ok, eg. that file permissions and ownership are correct. Also check that
    ``/home/admin/.ssh/authorized_keys`` exists and contains the deployer public
    key. The deployer public key should be present on your local machine as
    ``~/.ssh/deployer.key.pub``.
 
    Once logged in you should be able to both ``sudo`` and run ``psql`` without a
-   password prompt.
+   password prompt from the system or postgres respectively.
 
-   If things are working, then update the sshd config to disallow root logins::
+   If things are working, then update the sshd config to disallow password
+   authentication and root logins::
 
+       PasswordAuthentication no
        PermitRootLogin no
 
    in ``/etc/ssh/sshd_config``, and restart the sshd server::
@@ -86,9 +87,11 @@ Prepare Remote Host
        [remote] $ service ssh restart
 
 8. If you need to ``git clone`` or ``hg clone`` on the server then ensure that the
-   ``admin`` public key (``/home/admin/.ssh/admin.key.pub`` on the remote machine) is
-   copied to the source code provider, eg. codebasehq or github, by logging into
-   your account with the provider and copy/pasting the key in the appropriate place.
+   ``admin`` public key is copied to the repository provider (eg. codebasehq or
+   github) by logging into your account with the provider and copy/pasting the key
+   in the appropriate place. If you are not using SSH Agent Forwarding then
+   ensure that the associated private key is present on the server,
+   ie. that ``/home/admin/.ssh/server-admin.key exists``.
 
 
 tools/prepare_ubuntu.sh
@@ -103,12 +106,15 @@ tools/prepare_ubuntu.sh
     pg_version="9.1"
     
     ###############################################################################
-    # create admin user
+    # create admin and www users
     ###############################################################################
     groupadd -r -f admin
+    groupadd -r -f www
+    if [ ! $(grep '^www:' /etc/passwd) ]; then
+        useradd -r -m -d /var/www -s /bin/bash -g www www
+    fi
     if [ ! $(grep '^admin:' /etc/passwd) ]; then
-        useradd -r -m -g admin admin
-        chsh -s /bin/bash admin
+        useradd -r -m -s /bin/bash -g admin -G www admin
     fi
     if [ ! -d /home/admin/.ssh ]; then
         mkdir /home/admin/.ssh
@@ -124,6 +130,32 @@ tools/prepare_ubuntu.sh
         # ssh-only authentication
         passwd -l admin
     fi
+    
+    ###############################################################################
+    # ssh key setup
+    ###############################################################################
+    cp ssh_config /home/admin/.ssh
+    cp authorized_keys /home/admin/.ssh
+    if [ -e server-admin-keys.zip ]; then
+        echo ":: unpacking ssh keys"
+        unzip server-admin-keys.zip
+        cp server-admin-keys/* /home/admin/.ssh/
+        rm -rf server-admin-keys
+    fi
+    chown -R admin:admin /home/admin/.ssh
+    
+    ###############################################################################
+    # create static folders
+    ###############################################################################
+    
+    mkdir -p /srv
+    for d in static media; do
+        mkdir -p /var/www/$d
+        chown www:www /var/www/$d
+        ln -s /var/www/$d /srv/$d
+    done
+    
+    
     
     ###############################################################################
     # update sudoers file
@@ -168,16 +200,23 @@ tools/prepare_ubuntu.sh
     apt-get -y dist-upgrade
     apt-get -y install linux-headers-$(uname -r) build-essential
     apt-get -y install postgresql libpq-dev
-    apt-get -y install python-dev python-virtualenv
+    apt-get -y install python-dev
     apt-get -y install vim git-core ufw unzip
     apt-get -y clean
     
-    # remove setuptools
-    #command dpkg -s python-setuptools >/dev/null 2>&1
-    #if [ $? -eq 0 ]; then
-    #    echo ":: removing setuptools"
-    #    apt-get -y remove python-setuptools
-    #fi
+    
+    ###############################################################################
+    # get more recent setuptools, pip and virtualenv than system defaults
+    ###############################################################################
+    # use default easy_install to install latest pip
+    apt-get -y install python-setuptools
+    easy_install pip
+    # get latest setuptools
+    pip install -U setuptools
+    # remove default setuptools
+    apt-get -y remove python-setuptools
+    # get latest virtualenv
+    pip install virtualenv
     
     ###############################################################################
     # install orb (virtualenv utility)
@@ -221,20 +260,15 @@ tools/prepare_ubuntu.sh
     sed -i -e "s/#listen_addresses.*/listen_addresses = 'localhost'/" /etc/postgresql/$pg_version/main/postgresql.conf
     
     ###############################################################################
-    # ssh key setup
+    # install devpi-server
     ###############################################################################
-    echo ":: unpacking ssh keys"
-    unzip remote-keys.zip
-    cp remote-keys/* /home/admin/.ssh/
-    rm -rf remote-keys
-    chown -R admin:admin /home/admin/.ssh
-    
-    sshport=$(python -c "from random import randint; print randint(10000,30000)")
-    sed -i.orig -e "s/^Port .*/Port $sshport/g" /etc/ssh/sshd_config
     
     ###############################################################################
     # enable ufw
     ###############################################################################
+    sshport=$(python -c "from random import randint; print randint(10000,30000)")
+    sed -i.orig -e "s/^Port .*/Port $sshport/g" /etc/ssh/sshd_config
+    
     ufw default deny incoming
     ufw allow http
     ufw allow $sshport

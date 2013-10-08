@@ -67,18 +67,19 @@ Prepare Remote Host
 
        [local] $ ssh admin@<HOST or IP_ADDRESS>
 
-   The login should be passwordless, if you *are* prompted for a password or
-   passphrase, then check that the remote ``/home/admin/.ssh`` directory looks ok,
-   eg. that file permissions and ownership are correct. Also check that
+   If there are problems then check that the remote ``/home/admin/.ssh`` directory
+   looks ok, eg. that file permissions and ownership are correct. Also check that
    ``/home/admin/.ssh/authorized_keys`` exists and contains the deployer public
    key. The deployer public key should be present on your local machine as
    ``~/.ssh/deployer.key.pub``.
 
    Once logged in you should be able to both ``sudo`` and run ``psql`` without a
-   password prompt.
+   password prompt from the system or postgres respectively.
 
-   If things are working, then update the sshd config to disallow root logins::
+   If things are working, then update the sshd config to disallow password
+   authentication and root logins::
 
+       PasswordAuthentication no
        PermitRootLogin no
 
    in ``/etc/ssh/sshd_config``, and restart the sshd server::
@@ -86,9 +87,11 @@ Prepare Remote Host
        [remote] $ service ssh restart
 
 8. If you need to ``git clone`` or ``hg clone`` on the server then ensure that the
-   ``admin`` public key (``/home/admin/.ssh/admin.key.pub`` on the remote machine) is
-   copied to the source code provider, eg. codebasehq or github, by logging into
-   your account with the provider and copy/pasting the key in the appropriate place.
+   ``admin`` public key is copied to the repository provider (eg. codebasehq or
+   github) by logging into your account with the provider and copy/pasting the key
+   in the appropriate place. If you are not using SSH Agent Forwarding then
+   ensure that the associated private key is present on the server,
+   ie. that ``/home/admin/.ssh/server-admin.key exists``.
 
 
 tools/prepare_ubuntu.sh

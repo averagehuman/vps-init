@@ -15,13 +15,8 @@ if [ "$port" = "$host" ]; then
     port=22
 fi
 
-if [ ! -e remote-keys.zip ]; then
-    echo "no ssh key pairs found - have you run ./keygen ?"
-    exit 1
-fi
-
-pass1=
-pass2=
+pass1=""
+pass2=""
 
 echo -n "Password for admin user (leave blank for passwordless auth only) :"
 
@@ -47,11 +42,24 @@ if [ "$pass1" != "" ]; then
 fi
 
 # tar files
+rm -rf build
 mkdir build
 cp tools/prepare_ubuntu.sh build
 cp tools/pg_hba.conf build
 cp tools/orb build
-cp remote-keys.zip build
+cp tools/ssh_config build
+cp tools/authorized_keys build
+if [ -e keys/server-admin-keys.zip ]; then
+    reply=
+    until [ "$reply" = "y" ] || [ "$reply" = "n" ]; do
+        echo -n "Copy server admin keys to remote host? (Answer 'n' if using Agent Forwarding) [y/n] "
+        read reply
+    done
+    if [ "$reply" = "y" ]; then
+        cp keys/server-admin-keys.zip build
+    fi
+fi
+
 if [ -e .adminpass ]; then
     cp .adminpass build
 fi
@@ -66,10 +74,4 @@ echo ":: copying files to host"
 scp -P $port prepare_ubuntu.tar root@$host:~
 rm -rf prepare_ubuntu.tar
 
-# copy deployer key to local ~/.ssh
-echo ":: unpacking deployer keys"
-rm -rf local-keys
-unzip local-keys.zip
-cp local-keys/* ~/.ssh/
-rm -rf local-keys
 
