@@ -3,6 +3,7 @@
 set -e
 
 pg_version="9.1"
+home=$(pwd)
 
 ###############################################################################
 # create admin and www users
@@ -131,25 +132,49 @@ fi
 ###############################################################################
 # install devpi-server
 ###############################################################################
-if [ -d src/devpi-installer ]; then
-    pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
-    devpiversion="1.1"
-    port=3131
-    dest="/srv/python$pyversion"
-    server_root="$dest/var/devpi/$devpiversion"
+pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
+devpiversion="1.1"
+devpi_port=3131
+venv_root="/srv/python$pyversion"
+eggs_root="$venv_root/.eggs"
 
-    #create a virtualenv at $dest
-    if [ ! -e "$dest" ]; then
-        virtualenv "$dest"
-    fi
+#create a virtualenv at $venv_root
+if [ ! -e "$venv_root" ]; then
+    virtualenv "$venv_root"
+fi
+
+mkdir -p $eggs_root
+
+if [ -d src/devpi-installer ]; then
+    server_root="$venv_root/var/devpi/$devpiversion"
 
     rm -rf $server_root
-    mkdir -p $dest/var/devpi
+    mkdir -p $venv_root/var/devpi
     cp -r src/devpi-installer $server_root
 
     cd $server_root
+    cat > $server_root/base.cfg <<EOF
 
-    make deploy version=$devpiversion port=$port
+[buildout]
+eggs-directory = $eggs_root
+
+[cfg]
+version = $devpiversion
+host=localhost
+port=$devpi_port
+outside_url=
+bottleserver=auto
+debug=0
+refresh=60
+bypass_cdn=0
+secretfile=.secret
+serverdir=data
+aliasdir=/srv/devpi-server
+
+EOF
+
+
+    make deploy version=$devpiversion port=$devpi_port
 
     cp etc/devpi.upstart /etc/init/devpi-server.conf
 
@@ -158,18 +183,35 @@ fi
 ###############################################################################
 # buildout/pip support
 ###############################################################################
+cd $home
+index_url="http://localhost:$devpi_port/root/pypi/+simple/"
+
 mkdir -p /home/admin/.buildout
+mkdir -p /home/admin/.pip
+
 cat > /home/admin/.buildout/default.cfg <<EOF
 
 [buildout]
-eggs-directory = /home/gmf/.eggs
-index = http://localhost:3142/root/dev/+simple/
+eggs-directory = $eggs_root
+index = $index_url
 
 EOF
+
+cat > /home/admin/.pip/pip.conf <<EOF
+
+[global]
+index-url = $index_url
+
+EOF
+
+chown -R admin:admin $eggs_root
+chown -R admin:admin /home/admin/.buildout
+chown -R admin:admin /home/admin/.pip
 
 ###############################################################################
 # create postgres superuser 'admin' for peer authentication
 ###############################################################################
+cd $home
 echo ":: creating postgres superuser"
 #password=$(< /dev/urandom tr -dc A-Za-z0-9 | head -c30)
 exists=$(su postgres -c "psql -tqc \"SELECT count(1) FROM pg_catalog.pg_user WHERE usename = 'admin'\"")
@@ -187,6 +229,7 @@ passwd -l postgres
 ###############################################################################
 # update postgres config
 ###############################################################################
+cd $home
 echo ":: updating postgres config"
 
 # use our own pg_hba.conf (peer authentication for admin user, md5 for local connections)
