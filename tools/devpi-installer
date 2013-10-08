@@ -1,0 +1,44 @@
+#!/bin/sh
+
+set -e
+
+# expecting 0,1,2 args like <DEST>:<PORT>
+argline="$@"
+dest=$(echo "$argline" | sed "s/:.*//")
+port=$(echo "$argline" | sed "s/.*://")
+pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
+devpiversion="1.1"
+
+if [ ! $dest ]; then
+    dest="/srv/python$pyversion"
+fi
+if [ ! $port ]; then
+    port=3151
+fi
+
+server_root="$dest/var/devpi/$devpiversion"
+
+#create a virtualenv at $dest
+if [ ! -e "$dest" ]; then
+    virtualenv "$dest"
+else
+    if [ ! -e "$dest/bin/activate" ]; then
+        echo "ERROR: destination must either not exist or be a virtualenv"
+        exit 1
+    fi
+    if [ -e "$server_root" ]; then
+        echo "ERROR: server directory '$server_root' already exists"
+        exit 1
+    fi
+fi
+
+if [ -d src/devpi-installer ]; then
+    cp -r src/devpi-installer $server_root
+fi
+
+cd $server_root
+
+make deploy version=$devpiversion port=$port
+
+cp etc/devpi.upstart /etc/init/devpi-server.conf
+

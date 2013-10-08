@@ -129,6 +129,45 @@ if [ -e orb ]; then
 fi
 
 ###############################################################################
+# install devpi-server
+###############################################################################
+if [ -d src/devpi-installer ]; then
+    pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
+    devpiversion="1.1"
+    port=3131
+    dest="/srv/python$pyversion"
+    server_root="$dest/var/devpi/$devpiversion"
+
+    #create a virtualenv at $dest
+    if [ ! -e "$dest" ]; then
+        virtualenv "$dest"
+    fi
+
+    rm -rf $server_root
+    mkdir -p $dest/var/devpi
+    cp -r src/devpi-installer $server_root
+
+    cd $server_root
+
+    make deploy version=$devpiversion port=$port
+
+    cp etc/devpi.upstart /etc/init/devpi-server.conf
+
+    ln -s $server_root /srv/devpi-server
+fi
+###############################################################################
+# buildout/pip support
+###############################################################################
+mkdir -p /home/admin/.buildout
+cat > /home/admin/.buildout/default.cfg <<EOF
+
+[buildout]
+eggs-directory = /home/gmf/.eggs
+index = http://localhost:3142/root/dev/+simple/
+
+EOF
+
+###############################################################################
 # create postgres superuser 'admin' for peer authentication
 ###############################################################################
 echo ":: creating postgres superuser"
@@ -157,10 +196,6 @@ chmod 640 /etc/postgresql/$pg_version/main/pg_hba.conf
 
 # listen to requests from localhost only
 sed -i -e "s/#listen_addresses.*/listen_addresses = 'localhost'/" /etc/postgresql/$pg_version/main/postgresql.conf
-
-###############################################################################
-# install devpi-server
-###############################################################################
 
 ###############################################################################
 # enable ufw

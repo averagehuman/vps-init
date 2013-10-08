@@ -63,15 +63,18 @@ fi
 if [ -e .adminpass ]; then
     cp .adminpass build
 fi
+mkdir -p build/src/devpi-installer
+git clone git@github.com:averagehuman/devpi-installer.git build/src/devpi-installer
+
 cd build
-tar -cf prepare_ubuntu.tar *
+tar -czvf prepare_ubuntu.tgz *
 cd ..
-mv build/prepare_ubuntu.tar .
+mv build/prepare_ubuntu.tgz .
 rm -rf build
 
 #copy to remote server
 echo ":: copying files to host"
-scp -P $port prepare_ubuntu.tar root@$host:~
-rm -rf prepare_ubuntu.tar
+scp -P $port prepare_ubuntu.tgz root@$host:~
+rm -rf prepare_ubuntu.tgz
 
 

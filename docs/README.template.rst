@@ -31,13 +31,13 @@ Prepare Remote Host
 
        [local] $ ./inithost <IP-ADDRESS>:<PORT>
 
-   This will create a tar file ``prepare_ubuntu.tar`` and ``scp`` it to the remote host.
+   This will create a tar file ``prepare_ubuntu.tgz`` and ``scp`` it to the remote host.
    The tar file contains a provisioning script ``prepare_ubuntu.sh`` along with the
    zipped admin key pairs, and other utilities.
    
 4. ssh to the server and untar the file::
 
-       [remote] $ tar -xf prepare_ubuntu.tar
+       [remote] $ tar -xzvf prepare_ubuntu.tgz
 
    and run the script::
 

@@ -34,4 +34,5 @@ Makefile
 .passphrase
 base.cfg
 *.zip
+tools/authorized_keys
 
