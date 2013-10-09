@@ -23,6 +23,10 @@ Prepare Remote Host
    The keys will be zipped and password-encrypted as a basic security mechanism
    to prevent at least the keys being added to source control as plaintext.
 
+   TIP: you can include a ``.passphrase`` file in the same directory as
+   ``keygen`` rather than typing and repeating at the console. The passphrase
+   for the keys is used to also encrypt/decrypt the zip files.
+
 3. Run the ``inithost`` script::
 
        [local] $ ./inithost <IP-ADDRESS>
@@ -104,17 +108,22 @@ tools/prepare_ubuntu.sh
     set -e
     
     pg_version="9.1"
+    home=$(pwd)
     
     ###############################################################################
-    # create admin and www users
+    # create admin, www and devpi users
     ###############################################################################
     groupadd -r -f admin
     groupadd -r -f www
-    if [ ! $(grep '^www:' /etc/passwd) ]; then
-        useradd -r -m -d /var/www -s /bin/bash -g www www
-    fi
+    groupadd -r -f devpi
     if [ ! $(grep '^admin:' /etc/passwd) ]; then
-        useradd -r -m -s /bin/bash -g admin -G www admin
+        useradd -r -m -s /bin/bash -g admin -G www,devpi admin
+    fi
+    if [ ! $(grep '^www:' /etc/passwd) ]; then
+        useradd -r -M -s /bin/false -d /nonexistent -g www www
+    fi
+    if [ ! $(grep '^devpi:' /etc/passwd) ]; then
+        useradd -r -M -s /bin/false -d /nonexistent -g devpi devpi
     fi
     if [ ! -d /home/admin/.ssh ]; then
         mkdir /home/admin/.ssh
@@ -130,6 +139,9 @@ tools/prepare_ubuntu.sh
         # ssh-only authentication
         passwd -l admin
     fi
+    
+    passwd -l www
+    passwd -l devpi
     
     ###############################################################################
     # ssh key setup
@@ -232,45 +244,94 @@ tools/prepare_ubuntu.sh
     ###############################################################################
     # install devpi-server
     ###############################################################################
-    if [ -d src/devpi-installer ]; then
-        pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
-        devpiversion="1.1"
-        port=3131
-        dest="/srv/python$pyversion"
-        server_root="$dest/var/devpi/$devpiversion"
+    pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
+    devpi_version="1.1"
+    devpi_port=3131
+    devpi_datadir="/var/devpi"
+    venv_root="/srv/python$pyversion"
+    eggs_root="$venv_root/.eggs"
+    server_root="$venv_root/var/devpi/$devpi_version"
     
-        #create a virtualenv at $dest
-        if [ ! -e "$dest" ]; then
-            virtualenv "$dest"
-        fi
+    #create a virtualenv at $venv_root
+    if [ ! -e "$venv_root" ]; then
+        virtualenv "$venv_root"
+    fi
     
-        rm -rf $server_root
-        mkdir -p $dest/var/devpi
-        cp -r src/devpi-installer $server_root
+    mkdir -p $eggs_root
     
-        cd $server_root
+    rm -rf $server_root
+    mkdir -p $venv_root/var/devpi
+    rm -rf devpi-installer-master
+    wget -O devpi-installer.zip https://github.com/averagehuman/devpi-installer/archive/master.zip
+    unzip devpi-installer.zip
+    mv devpi-installer-master $server_root
     
-        make deploy version=$devpiversion port=$port
+    cat > $server_root/base.cfg <<EOF
     
-        cp etc/devpi.upstart /etc/init/devpi-server.conf
+    [buildout]
+    eggs-directory = $eggs_root
     
+    [cfg]
+    version = $devpi_version
+    host=localhost
+    port=$devpi_port
+    outside_url=
+    bottleserver=auto
+    debug=0
+    refresh=60
+    bypass_cdn=0
+    secretfile=.secret
+    serverdir=$devpi_datadir
+    aliasdir=/srv/devpi-server
+    user=devpi
+    group=devpi
+    
+    EOF
+    
+    cd $server_root && make deploy
+    
+    cp $server_root/etc/devpi.upstart /etc/init/devpi-server.conf
+    
+    if [ ! -e /srv/devpi-server ]; then
         ln -s $server_root /srv/devpi-server
     fi
+    
+    chown -R admin:admin $venv_root
+    chown -R devpi:devpi $venv_root/var/devpi
+    chown -R devpi:devpi $devpi_datadir
+    
     ###############################################################################
     # buildout/pip support
     ###############################################################################
+    cd $home
+    index_url="http://localhost:$devpi_port/root/pypi/+simple/"
+    
     mkdir -p /home/admin/.buildout
+    mkdir -p /home/admin/.pip
+    
     cat > /home/admin/.buildout/default.cfg <<EOF
     
     [buildout]
-    eggs-directory = /home/gmf/.eggs
-    index = http://localhost:3142/root/dev/+simple/
+    eggs-directory = $eggs_root
+    index = $index_url
     
     EOF
+    
+    cat > /home/admin/.pip/pip.conf <<EOF
+    
+    [global]
+    index-url = $index_url
+    
+    EOF
+    
+    chown -R admin:admin $eggs_root
+    chown -R admin:admin /home/admin/.buildout
+    chown -R admin:admin /home/admin/.pip
     
     ###############################################################################
     # create postgres superuser 'admin' for peer authentication
     ###############################################################################
+    cd $home
     echo ":: creating postgres superuser"
     #password=$(< /dev/urandom tr -dc A-Za-z0-9 | head -c30)
     exists=$(su postgres -c "psql -tqc \"SELECT count(1) FROM pg_catalog.pg_user WHERE usename = 'admin'\"")
@@ -288,6 +349,7 @@ tools/prepare_ubuntu.sh
     ###############################################################################
     # update postgres config
     ###############################################################################
+    cd $home
     echo ":: updating postgres config"
     
     # use our own pg_hba.conf (peer authentication for admin user, md5 for local connections)

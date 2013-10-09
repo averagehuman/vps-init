@@ -23,6 +23,10 @@ Prepare Remote Host
    The keys will be zipped and password-encrypted as a basic security mechanism
    to prevent at least the keys being added to source control as plaintext.
 
+   TIP: you can include a ``.passphrase`` file in the same directory as
+   ``keygen`` rather than typing and repeating at the console. The passphrase
+   for the keys is used to also encrypt/decrypt the zip files.
+
 3. Run the ``inithost`` script::
 
        [local] $ ./inithost <IP-ADDRESS>
