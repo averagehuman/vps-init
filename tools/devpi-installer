@@ -1,5 +1,32 @@
 #!/bin/sh
 
+###############################################################################
+#
+# devpi-server install script
+#
+# devpi-server is a caching PyPi proxy, it makes Python package installation
+# more reliable and much faster.
+#
+# Usage:
+#
+#     $ sudo ./devpi-installer
+#
+# This script is a deploy utility, see https://github.com/averagehuman/devpi-installer
+# for the actual installer.
+#
+# IMPORTANT: the installer expects more recent pip, setuptools and virtualenv
+# packages than the OS provides by default. Upgrade to latest tools as follows:
+#
+#   $ apt-get -y install python-setuptools #if easy_install is not available
+#   $ easy_install -U pip
+#   $ pip install -U setuptools
+#   $ apt-get -y remove python-setuptools
+#   $ pip install -U virtualenv
+
+# Tested on Ubuntu 12.04 with Python 2.7 and devpi-server 1.1
+#
+###############################################################################
+
 set -e
 
 pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
