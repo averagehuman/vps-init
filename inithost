@@ -63,8 +63,6 @@ fi
 if [ -e .adminpass ]; then
     cp .adminpass build
 fi
-mkdir -p build/src/devpi-installer
-git clone git@github.com:averagehuman/devpi-installer.git build/src/devpi-installer
 
 cd build
 tar -czvf prepare_ubuntu.tgz *
