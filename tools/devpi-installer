@@ -2,43 +2,103 @@
 
 set -e
 
-# expecting 0,1,2 args like <DEST>:<PORT>
-argline="$@"
-dest=$(echo "$argline" | sed "s/:.*//")
-port=$(echo "$argline" | sed "s/.*://")
 pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
-devpiversion="1.1"
+devpi_version="1.1"
+devpi_port=3131
+devpi_datadir="/var/devpi"
+venv_root="/srv/python$pyversion"
+server_root="$venv_root/var/devpi/$devpi_version"
 
-if [ ! $dest ]; then
-    dest="/srv/python$pyversion"
-fi
-if [ ! $port ]; then
-    port=3151
-fi
-
-server_root="$dest/var/devpi/$devpiversion"
-
-#create a virtualenv at $dest
-if [ ! -e "$dest" ]; then
-    virtualenv "$dest"
-else
-    if [ ! -e "$dest/bin/activate" ]; then
-        echo "ERROR: destination must either not exist or be a virtualenv"
-        exit 1
-    fi
-    if [ -e "$server_root" ]; then
-        echo "ERROR: server directory '$server_root' already exists"
-        exit 1
-    fi
+###############################################################################
+# create app user 
+###############################################################################
+if [ ! $(grep '^devpi:' /etc/passwd) ]; then
+    useradd -r -M -s /bin/false -d /nonexistent devpi
 fi
 
-if [ -d src/devpi-installer ]; then
-    cp -r src/devpi-installer $server_root
+passwd -l devpi
+
+###############################################################################
+# create virtualenv
+###############################################################################
+if [ ! -e "$venv_root" ]; then
+    virtualenv "$venv_root"
 fi
 
-cd $server_root
+###############################################################################
+# download devpi-installer
+###############################################################################
+rm -rf $server_root
+mkdir -p $venv_root/var/devpi
+rm -rf devpi-installer-master
+wget -O devpi-installer.zip https://github.com/averagehuman/devpi-installer/archive/master.zip
+unzip devpi-installer.zip
+mv devpi-installer-master $server_root
+rm -f devpi-installer.zip
 
-make deploy version=$devpiversion port=$port
+###############################################################################
+# update base.cfg
+###############################################################################
 
-cp etc/devpi.upstart /etc/init/devpi-server.conf
+cat > $server_root/base.cfg <<EOF
+
+[cfg]
+version = $devpi_version
+host=localhost
+port=$devpi_port
+outside_url=
+bottleserver=auto
+debug=0
+refresh=60
+bypass_cdn=0
+secretfile=.secret
+serverdir=$devpi_datadir
+aliasdir=/srv/devpi-server
+user=devpi
+group=devpi
+
+EOF
+
+###############################################################################
+# install
+###############################################################################
+cd $server_root && make deploy
+
+cp $server_root/etc/devpi.upstart /etc/init/devpi-server.conf
+
+if [ -h /srv/devpi-server ]; then
+    rm /srv/devpi-server
+fi
+
+if [ ! -e /srv/devpi-server ]; then
+    ln -s $server_root /srv/devpi-server
+fi
+
+chown -R devpi:devpi $venv_root/var/devpi
+chown -R devpi:devpi $devpi_datadir
+
+###############################################################################
+# user info
+###############################################################################
+
+index_url="http://localhost:$devpi_port/root/pypi/+simple/"
+
+cat <<EOF
+
+devpi-server v$devpi_version has been installed. Start it with
+
+    service devpi-server start
+
+To use devpi as a proxy update '~/.buildout/default.cfg' with
+
+    [buildout]
+    index = $index_url
+
+and update '~/.pip/pip.conf' with
+
+    [global]
+    index-url = $index_url
+
+EOF
+
 
