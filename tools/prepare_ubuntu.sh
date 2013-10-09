@@ -6,15 +6,19 @@ pg_version="9.1"
 home=$(pwd)
 
 ###############################################################################
-# create admin and www users
+# create admin, www and devpi users
 ###############################################################################
 groupadd -r -f admin
 groupadd -r -f www
-if [ ! $(grep '^www:' /etc/passwd) ]; then
-    useradd -r -m -d /var/www -s /bin/bash -g www www
-fi
+groupadd -r -f devpi
 if [ ! $(grep '^admin:' /etc/passwd) ]; then
-    useradd -r -m -s /bin/bash -g admin -G www admin
+    useradd -r -m -s /bin/bash -g admin -G www,devpi admin
+fi
+if [ ! $(grep '^www:' /etc/passwd) ]; then
+    useradd -r -M -s /bin/false -d /nonexistent -g www www
+fi
+if [ ! $(grep '^devpi:' /etc/passwd) ]; then
+    useradd -r -M -s /bin/false -d /nonexistent -g devpi devpi
 fi
 if [ ! -d /home/admin/.ssh ]; then
     mkdir /home/admin/.ssh
@@ -30,6 +34,9 @@ else
     # ssh-only authentication
     passwd -l admin
 fi
+
+passwd -l www
+passwd -l devpi
 
 ###############################################################################
 # ssh key setup
@@ -133,10 +140,12 @@ fi
 # install devpi-server
 ###############################################################################
 pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
-devpiversion="1.1"
+devpi_version="1.1"
 devpi_port=3131
+devpi_datadir="/var/devpi"
 venv_root="/srv/python$pyversion"
 eggs_root="$venv_root/.eggs"
+server_root="$venv_root/var/devpi/$devpi_version"
 
 #create a virtualenv at $venv_root
 if [ ! -e "$venv_root" ]; then
@@ -145,21 +154,20 @@ fi
 
 mkdir -p $eggs_root
 
-if [ -d src/devpi-installer ]; then
-    server_root="$venv_root/var/devpi/$devpiversion"
+rm -rf $server_root
+mkdir -p $venv_root/var/devpi
+rm -rf devpi-installer-master
+wget -O devpi-installer.zip https://github.com/averagehuman/devpi-installer/archive/master.zip
+unzip devpi-installer.zip
+mv devpi-installer-master $server_root
 
-    rm -rf $server_root
-    mkdir -p $venv_root/var/devpi
-    cp -r src/devpi-installer $server_root
-
-    cd $server_root
-    cat > $server_root/base.cfg <<EOF
+cat > $server_root/base.cfg <<EOF
 
 [buildout]
 eggs-directory = $eggs_root
 
 [cfg]
-version = $devpiversion
+version = $devpi_version
 host=localhost
 port=$devpi_port
 outside_url=
@@ -168,18 +176,25 @@ debug=0
 refresh=60
 bypass_cdn=0
 secretfile=.secret
-serverdir=data
+serverdir=$devpi_datadir
 aliasdir=/srv/devpi-server
+user=devpi
+group=devpi
 
 EOF
 
+cd $server_root && make deploy
 
-    make deploy version=$devpiversion port=$devpi_port
+cp $server_root/etc/devpi.upstart /etc/init/devpi-server.conf
 
-    cp etc/devpi.upstart /etc/init/devpi-server.conf
-
+if [ ! -e /srv/devpi-server ]; then
     ln -s $server_root /srv/devpi-server
 fi
+
+chown -R admin:admin $venv_root
+chown -R devpi:devpi $venv_root/var/devpi
+chown -R devpi:devpi $devpi_datadir
+
 ###############################################################################
 # buildout/pip support
 ###############################################################################
