@@ -59,7 +59,9 @@ mkdir -p /srv
 for d in static media; do
     mkdir -p /var/www/$d
     chown www:www /var/www/$d
-    ln -s /var/www/$d /srv/$d
+    if [ ! -e /srv/$d ]; then
+        ln -s /var/www/$d /srv/$d
+    fi
 done
 
 
@@ -139,29 +141,31 @@ fi
 ###############################################################################
 # install devpi-server
 ###############################################################################
-pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
-devpi_version="1.1"
-devpi_port=3131
-devpi_datadir="/var/devpi"
-venv_root="/srv/python$pyversion"
-eggs_root="$venv_root/.eggs"
-server_root="$venv_root/var/devpi/$devpi_version"
+service devpi-server status > /dev/null 2>&1
+if [ $? -eq  1 ]; then
+    pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
+    devpi_version="1.1"
+    devpi_port=3131
+    devpi_datadir="/var/devpi"
+    venv_root="/srv/python$pyversion"
+    eggs_root="$venv_root/.eggs"
+    server_root="$venv_root/var/devpi/$devpi_version"
 
-#create a virtualenv at $venv_root
-if [ ! -e "$venv_root" ]; then
-    virtualenv "$venv_root"
-fi
+    #create a virtualenv at $venv_root
+    if [ ! -e "$venv_root" ]; then
+        virtualenv "$venv_root"
+    fi
 
-mkdir -p $eggs_root
+    mkdir -p $eggs_root
 
-rm -rf $server_root
-mkdir -p $venv_root/var/devpi
-rm -rf devpi-installer-master
-wget -O devpi-installer.zip https://github.com/averagehuman/devpi-installer/archive/master.zip
-unzip devpi-installer.zip
-mv devpi-installer-master $server_root
+    rm -rf $server_root
+    mkdir -p $venv_root/var/devpi
+    rm -rf devpi-installer-master
+    wget -O devpi-installer.zip https://github.com/averagehuman/devpi-installer/archive/master.zip
+    unzip devpi-installer.zip
+    mv devpi-installer-master $server_root
 
-cat > $server_root/base.cfg <<EOF
+    cat > $server_root/base.cfg <<EOF
 
 [buildout]
 eggs-directory = $eggs_root
@@ -183,28 +187,28 @@ group=devpi
 
 EOF
 
-cd $server_root && make deploy
+    cd $server_root && make deploy
 
-cp $server_root/etc/devpi.upstart /etc/init/devpi-server.conf
+    cp $server_root/etc/devpi.upstart /etc/init/devpi-server.conf
 
-if [ ! -e /srv/devpi-server ]; then
-    ln -s $server_root /srv/devpi-server
-fi
+    if [ ! -e /srv/devpi-server ]; then
+        ln -s $server_root /srv/devpi-server
+    fi
 
-chown -R admin:admin $venv_root
-chown -R devpi:devpi $venv_root/var/devpi
-chown -R devpi:devpi $devpi_datadir
+    chown -R admin:admin $venv_root
+    chown -R devpi:devpi $venv_root/var/devpi
+    chown -R devpi:devpi $devpi_datadir
 
-###############################################################################
-# buildout/pip support
-###############################################################################
-cd $home
-index_url="http://localhost:$devpi_port/root/pypi/+simple/"
+    ###############################################################################
+    # buildout/pip support
+    ###############################################################################
+    cd $home
+    index_url="http://localhost:$devpi_port/root/pypi/+simple/"
 
-mkdir -p /home/admin/.buildout
-mkdir -p /home/admin/.pip
+    mkdir -p /home/admin/.buildout
+    mkdir -p /home/admin/.pip
 
-cat > /home/admin/.buildout/default.cfg <<EOF
+    cat > /home/admin/.buildout/default.cfg <<EOF
 
 [buildout]
 eggs-directory = $eggs_root
@@ -219,9 +223,10 @@ index-url = $index_url
 
 EOF
 
-chown -R admin:admin $eggs_root
-chown -R admin:admin /home/admin/.buildout
-chown -R admin:admin /home/admin/.pip
+    chown -R admin:admin $eggs_root
+    chown -R admin:admin /home/admin/.buildout
+    chown -R admin:admin /home/admin/.pip
+fi
 
 ###############################################################################
 # create postgres superuser 'admin' for peer authentication
