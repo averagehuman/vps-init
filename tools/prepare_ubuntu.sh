@@ -103,6 +103,14 @@ EOF
 chmod 440 /etc/sudoers
 
 ###############################################################################
+# add varnish ppa
+###############################################################################
+if [ -z "$(grep 'varnish-3.0' /etc/apt/sources.list)" ]; then
+    curl http://repo.varnish-cache.org/debian/GPG-key.txt | apt-key add -
+    echo "deb http://repo.varnish-cache.org/ubuntu/ precise varnish-3.0" | tee -a /etc/apt/sources.list
+fi
+
+###############################################################################
 # apt-get package update
 ###############################################################################
 apt-get -y update
@@ -111,6 +119,7 @@ apt-get -y install linux-headers-$(uname -r) build-essential
 apt-get -y install postgresql libpq-dev
 apt-get -y install python-dev
 apt-get -y install vim git-core ufw unzip
+apt-get -y install varnish nginx memcached
 apt-get -y clean
 
 
@@ -259,6 +268,11 @@ chmod 640 /etc/postgresql/$pg_version/main/pg_hba.conf
 
 # listen to requests from localhost only
 sed -i -e "s/#listen_addresses.*/listen_addresses = 'localhost'/" /etc/postgresql/$pg_version/main/postgresql.conf
+
+###############################################################################
+# disable memcached
+###############################################################################
+sed -i -e "s/^ENABLE_MEMCACHED\b.*/ENABLE_MEMCACHED=no/g" /etc/default/memcached
 
 ###############################################################################
 # enable ufw
