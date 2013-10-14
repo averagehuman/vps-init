@@ -3,6 +3,7 @@
 set -e
 
 pg_version="9.1"
+nginx_version="1.4.3"
 home=$(pwd)
 
 ###############################################################################
@@ -105,10 +106,10 @@ chmod 440 /etc/sudoers
 ###############################################################################
 # add varnish ppa
 ###############################################################################
-if [ -z "$(grep 'varnish-3.0' /etc/apt/sources.list)" ]; then
-    curl http://repo.varnish-cache.org/debian/GPG-key.txt | apt-key add -
-    echo "deb http://repo.varnish-cache.org/ubuntu/ precise varnish-3.0" | tee -a /etc/apt/sources.list
-fi
+#if [ -z "$(grep 'varnish-3.0' /etc/apt/sources.list)" ]; then
+#    curl http://repo.varnish-cache.org/debian/GPG-key.txt | apt-key add -
+#    echo "deb http://repo.varnish-cache.org/ubuntu/ precise varnish-3.0" | tee -a /etc/apt/sources.list
+#fi
 
 ###############################################################################
 # apt-get package update
@@ -119,7 +120,7 @@ apt-get -y install linux-headers-$(uname -r) build-essential
 apt-get -y install postgresql libpq-dev
 apt-get -y install python-dev
 apt-get -y install vim git-core ufw unzip
-apt-get -y install varnish nginx memcached
+apt-get -y install memcached
 apt-get -y clean
 
 
@@ -272,8 +273,65 @@ sed -i -e "s/#listen_addresses.*/listen_addresses = 'localhost'/" /etc/postgresq
 ###############################################################################
 # disable memcached
 ###############################################################################
-sed -i -e "s/^ENABLE_MEMCACHED\b.*/ENABLE_MEMCACHED=no/g" /etc/default/memcached
+#sed -i -e "s/^ENABLE_MEMCACHED\b.*/ENABLE_MEMCACHED=no/g" /etc/default/memcached
 
+###############################################################################
+# install nginx
+###############################################################################
+sudo apt-get -y install libpcre3-dev zlib1g-dev libssl-dev
+
+tmpdir="/tmp/nginx-install-$(date +%y%m%d-%H%M%S)"
+prefix="/srv/nginx"
+
+mkdir -p  $tmpdir
+cd $tmpdir
+wget http://nginx.org/download/nginx-${nginx_version}.tar.gz
+tar -xvf nginx-${nginx_version}.tar.gz
+cd nginx-${nginx_version}
+./configure \
+    --prefix=$prefix \
+    --pid-path=$prefix/run/nginx.pid \
+    --lock-path=$prefix/run/nginx.lock \
+    --http-client-body-temp-path=$prefix/run/client_body_temp \
+    --http-proxy-temp-path=$prefix/run/proxy_temp \
+    --http-fastcgi-temp-path=$prefix/run/fastcgi_temp \
+    --http-uwsgi-temp-path=$prefix/run/uwsgi_temp \
+    --user=www \
+    --group=www \
+    --with-http_ssl_module \
+    --without-http_scgi_module \
+    --without-http_ssi_module
+
+make && make install
+
+cat > /etc/init/nginx.conf <<EOF
+
+description "nginx http daemon"
+author "Philipp Klose"
+
+start on (filesystem and net-device-up IFACE=lo)
+stop on runlevel [!2345]
+
+env DAEMON=$prefix/sbin/nginx
+env PID=$prefix/run/nginx.pid
+
+expect fork
+respawn
+respawn limit 10 5
+#oom never
+
+pre-start script
+    $DAEMON -t
+    if [ $? -ne 0 ]
+    then exit $?
+    fi
+end script
+
+exec $DAEMON
+
+EOF
+
+cd $home
 ###############################################################################
 # enable ufw
 ###############################################################################
