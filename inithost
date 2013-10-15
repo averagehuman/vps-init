@@ -44,7 +44,8 @@ fi
 # tar files
 rm -rf build
 mkdir build
-cp tools/prepare_ubuntu.sh build
+cp tools/prepare_ubuntu.sh build/server-init
+cp tools/install_ubuntu.sh build/server-install
 cp tools/pg_hba.conf build
 cp tools/orb build
 cp tools/ssh_config build
