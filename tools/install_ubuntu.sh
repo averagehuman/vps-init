@@ -46,11 +46,8 @@ if [ $? -eq  1 ]; then
     wget -O devpi-installer.zip https://github.com/averagehuman/devpi-installer/archive/master.zip
     unzip devpi-installer.zip
     mv devpi-installer-master $server_root
-fi
 
-set -e
-
-cat > $server_root/base.cfg <<EOF
+    cat > $server_root/base.cfg <<EOF
 
 [buildout]
 eggs-directory = $eggs_root
@@ -72,17 +69,21 @@ group=devpi
 
 EOF
 
-cd $server_root && make deploy
+    cd $server_root && make deploy
 
-cp $server_root/etc/devpi.upstart /etc/init/devpi-server.conf
+    cp $server_root/etc/devpi.upstart /etc/init/devpi-server.conf
 
-if [ ! -e /srv/devpi-server ]; then
-    ln -s $server_root /srv/devpi-server
+    if [ ! -e /srv/devpi-server ]; then
+        ln -s $server_root /srv/devpi-server
+    fi
+
+    chown -R admin:admin $venv_root
+    chown -R devpi:devpi $venv_root/var/devpi
+    chown -R devpi:devpi $devpi_datadir
+
 fi
 
-chown -R admin:admin $venv_root
-chown -R devpi:devpi $venv_root/var/devpi
-chown -R devpi:devpi $devpi_datadir
+set -e
 
 ###############################################################################
 # buildout/pip support
@@ -154,31 +155,32 @@ sed -i -e "s/#listen_addresses.*/listen_addresses = 'localhost'/" /etc/postgresq
 ###############################################################################
 sudo apt-get -y install libpcre3-dev zlib1g-dev libssl-dev
 
-tmpdir="/tmp/nginx-install-$(date +%y%m%d-%H%M%S)"
 prefix="/srv/nginx"
 
-mkdir -p  $tmpdir
-cd $tmpdir
-wget http://nginx.org/download/nginx-${nginx_version}.tar.gz
-tar -xvf nginx-${nginx_version}.tar.gz
-cd nginx-${nginx_version}
-./configure \
-    --prefix=$prefix \
-    --pid-path=$prefix/run/nginx.pid \
-    --lock-path=$prefix/run/nginx.lock \
-    --http-client-body-temp-path=$prefix/run/client_body_temp \
-    --http-proxy-temp-path=$prefix/run/proxy_temp \
-    --http-fastcgi-temp-path=$prefix/run/fastcgi_temp \
-    --http-uwsgi-temp-path=$prefix/run/uwsgi_temp \
-    --user=www \
-    --group=www \
-    --with-http_ssl_module \
-    --without-http_scgi_module \
-    --without-http_ssi_module
+if [ ! -e "$prefix/sbin/nginx" ]; then
+    tmpdir="/tmp/nginx-install-$(date +%y%m%d-%H%M%S)"
+    mkdir -p  $tmpdir
+    cd $tmpdir
+    wget http://nginx.org/download/nginx-${nginx_version}.tar.gz
+    tar -xvf nginx-${nginx_version}.tar.gz
+    cd nginx-${nginx_version}
+    ./configure \
+        --prefix=$prefix \
+        --pid-path=$prefix/run/nginx.pid \
+        --lock-path=$prefix/run/nginx.lock \
+        --http-client-body-temp-path=$prefix/run/client_body_temp \
+        --http-proxy-temp-path=$prefix/run/proxy_temp \
+        --http-fastcgi-temp-path=$prefix/run/fastcgi_temp \
+        --http-uwsgi-temp-path=$prefix/run/uwsgi_temp \
+        --user=www \
+        --group=www \
+        --with-http_ssl_module \
+        --without-http_scgi_module \
+        --without-http_ssi_module
 
-make && make install
+    make && make install
 
-cat > /etc/init/nginx.conf <<EOF
+    cat > /etc/init/nginx.conf <<EOF
 
 description "nginx http daemon"
 author "Philipp Klose"
@@ -205,4 +207,5 @@ exec \$DAEMON
 
 EOF
 
+fi
 
