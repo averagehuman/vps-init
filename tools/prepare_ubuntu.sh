@@ -54,13 +54,16 @@ chown -R admin:admin /home/admin/.ssh
 ###############################################################################
 
 mkdir -p /srv
-for d in static media; do
+for d in assets media; do
     mkdir -p /var/www/$d
-    chown www:www /var/www/$d
     if [ ! -e /srv/$d ]; then
         ln -s /var/www/$d /srv/$d
     fi
 done
+
+chown admin:admin /var/www/assets
+chown www:admin /var/www/media
+chmod 775 /var/www/media
 
 
 

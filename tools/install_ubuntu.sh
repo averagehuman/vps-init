@@ -180,6 +180,8 @@ if [ ! -e "$prefix/sbin/nginx" ]; then
 
     make && make install
 
+    chown -R www:www $prefix/logs
+
     cat > /etc/init/nginx.conf <<EOF
 
 description "nginx http daemon"
@@ -204,6 +206,24 @@ pre-start script
 end script
 
 exec \$DAEMON
+
+EOF
+
+cat > /etc/logrotate.d/nginx <<EOF
+
+/srv/nginx/logs/*.log {
+	daily
+	missingok
+	rotate 52
+	compress
+	delaycompress
+	notifempty
+	create 0640 www www
+	sharedscripts
+	postrotate
+		[ ! -f /var/run/nginx.pid ] || kill -USR1 `cat /var/run/nginx.pid`
+	endscript
+}
 
 EOF
 
