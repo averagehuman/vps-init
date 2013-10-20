@@ -33,8 +33,8 @@ pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
 devpi_version="1.1"
 devpi_port=3131
 devpi_datadir="/var/devpi"
-venv_root="/srv/python$pyversion"
-server_root="$venv_root/var/devpi/$devpi_version"
+venv_root="/opt/python$pyversion"
+server_root="$venv_root/src/devpi/$devpi_version"
 
 ###############################################################################
 # create app user 
@@ -56,12 +56,15 @@ fi
 # download devpi-installer
 ###############################################################################
 rm -rf $server_root
-mkdir -p $venv_root/var/devpi
-rm -rf devpi-installer-master
+mkdir -p $(dirname $server_root)
+tmpdir=/tmp/$(date +%Y%m%d-%H%M%S)
+mkdir $tmpdir
+cd $tmpdir
 wget -O devpi-installer.zip https://github.com/averagehuman/devpi-installer/archive/master.zip
 unzip devpi-installer.zip
 mv devpi-installer-master $server_root
-rm -f devpi-installer.zip
+cd
+rm -rf $tmpdir
 
 ###############################################################################
 # update base.cfg
@@ -80,7 +83,7 @@ refresh=60
 bypass_cdn=0
 secretfile=.secret
 serverdir=$devpi_datadir
-aliasdir=/srv/devpi-server
+aliasdir=/etc/devpi-server
 user=devpi
 group=devpi
 
@@ -89,19 +92,16 @@ EOF
 ###############################################################################
 # install
 ###############################################################################
-cd $server_root && make deploy
+cd $server_root && make install
 
-cp $server_root/etc/devpi.upstart /etc/init/devpi-server.conf
-
-if [ -h /srv/devpi-server ]; then
-    rm /srv/devpi-server
+if [ -h /etc/devpi-server ]; then
+    rm /etc/devpi-server
 fi
 
-if [ ! -e /srv/devpi-server ]; then
-    ln -s $server_root /srv/devpi-server
+if [ ! -e /etc/devpi-server ]; then
+    ln -s $server_root /etc/devpi-server
 fi
 
-chown -R devpi:devpi $venv_root/var/devpi
 chown -R devpi:devpi $devpi_datadir
 
 ###############################################################################
@@ -112,9 +112,14 @@ index_url="http://localhost:$devpi_port/root/pypi/+simple/"
 
 cat <<EOF
 
+*******************************************************************************
+*******************************************************************************
+
+SUCCESS!
+
 devpi-server v$devpi_version has been installed. Start it with
 
-    service devpi-server start
+    supervisorctl reread && supervisorctl update
 
 To use devpi as a proxy update '~/.buildout/default.cfg' with
 
@@ -125,6 +130,9 @@ and update '~/.pip/pip.conf' with
 
     [global]
     index-url = $index_url
+
+*******************************************************************************
+*******************************************************************************
 
 EOF
 
