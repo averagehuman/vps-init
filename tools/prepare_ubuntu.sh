@@ -114,6 +114,7 @@ chmod 440 /etc/sudoers
 ###############################################################################
 # apt-get package update
 ###############################################################################
+add-apt-repository ppa:webupd8team/java
 apt-get -y update
 apt-get -y dist-upgrade
 apt-get -y install linux-headers-$(uname -r) build-essential
@@ -121,6 +122,7 @@ apt-get -y install postgresql libpq-dev
 apt-get -y install python-dev
 apt-get -y install vim git-core ufw unzip
 apt-get -y install memcached
+apt-get -y install oracle-java7-installer
 apt-get -y clean
 
 
