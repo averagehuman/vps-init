@@ -19,30 +19,37 @@ for d in $dir1 $dir2; do
     mkdir -p $d
 done
 
-if [ -e .passphrase ]; then
-    pass1=$(tr -d '\n' < .passphrase)
-else
-    echo -n "Passphrase for new keys: "
+ensure_passphrase () {
+    if [ -z $pass1 ]; then
+        if [ -e ".passphrase" ]; then
+            pass1=$(tr -d '\n' < .passphrase)
+        else
+            echo -n "Passphrase for new keys: "
 
-    stty -echo
-    read pass1
-    stty echo
-    echo ""
+            stty -echo
+            read pass1
+            stty echo
+            echo ""
 
-    if [ "$pass1" != "" ]; then
-        echo -n "Passphrase (again): "
+            if [ "$pass1" != "" ]; then
+                echo -n "Passphrase (again): "
 
-        stty -echo
-        read pass2
-        stty echo
-        echo ""
+                stty -echo
+                read pass2
+                stty echo
+                echo ""
 
-        if [ "$pass1" != "$pass2" ];then
-            echo "ERROR: passphrases didn't match"
-            exit 1
+                if [ "$pass1" != "$pass2" ];then
+                    echo "ERROR: passphrases didn't match"
+                    exit 1
+                fi
+            fi
+            echo "$pass1" > .passphrase
         fi
     fi
-fi
+}
+
+ensure_passphrase
 
 adminkey="$HOME/.ssh/server-admin.key"
 if [ -e $adminkey ] && [ -e $adminkey.pub ]; then
@@ -76,7 +83,7 @@ if [ ! -e $dir2/deployer.key ]; then
     ssh-keygen -q -C "$comment2" -f $dir2/deployer.key -P "$pass1"
 fi
 
-cp $dir2/deployer.key.pub tools/authorized_keys
+cp $dir2/deployer.key.pub tools/etc/authorized_keys
 
 set +e
 sync=0

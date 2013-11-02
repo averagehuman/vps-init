@@ -23,7 +23,6 @@ xapian.index
 .local.cfg
 local_settings.py
 db_settings.py
-etc
 run
 log
 instance/settings.py
@@ -34,5 +33,5 @@ Makefile
 .passphrase
 base.cfg
 *.zip
-tools/authorized_keys
+tools/etc/authorized_keys
 

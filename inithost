@@ -46,10 +46,7 @@ rm -rf build
 mkdir build
 cp tools/prepare_ubuntu.sh build/server-init
 cp tools/install_ubuntu.sh build/server-install
-cp tools/pg_hba.conf build
-cp tools/orb build
-cp tools/ssh_config build
-cp tools/authorized_keys build
+cp -r tools/etc build
 if [ -e keys/server-admin-keys.zip ]; then
     reply=
     until [ "$reply" = "y" ] || [ "$reply" = "n" ]; do

@@ -39,8 +39,8 @@ passwd -l devpi
 ###############################################################################
 # ssh key setup
 ###############################################################################
-cp ssh_config /home/admin/.ssh
-cp authorized_keys /home/admin/.ssh
+cp etc/ssh_config /home/admin/.ssh
+cp etc/authorized_keys /home/admin/.ssh
 if [ -e server-admin-keys.zip ]; then
     echo ":: unpacking ssh keys"
     unzip server-admin-keys.zip
@@ -114,17 +114,29 @@ chmod 440 /etc/sudoers
 ###############################################################################
 # apt-get package update
 ###############################################################################
-add-apt-repository ppa:webupd8team/java
 apt-get -y update
 apt-get -y dist-upgrade
 apt-get -y install linux-headers-$(uname -r) build-essential
+apt-get -y install unattended-upgrades python-software-properties
 apt-get -y install postgresql libpq-dev
 apt-get -y install python-dev
 apt-get -y install vim git-core ufw unzip
 apt-get -y install memcached
-apt-get -y install oracle-java7-installer
 apt-get -y clean
 
+###############################################################################
+# oracle java
+###############################################################################
+add-apt-repository -y ppa:webupd8team/java
+apt-get -y update
+apt-get -y install oracle-java7-installer
+
+###############################################################################
+# configure unattended system upgrades
+###############################################################################
+cp etc/50unattended-upgrades /etc/apt/apt.conf.d/
+chown root:root /etc/apt/apt.conf.d/50unattended-upgrades
+chmod 644 /etc/apt/apt.conf.d/50unattended-upgrades
 
 ###############################################################################
 # get more recent setuptools, pip and virtualenv than system defaults
