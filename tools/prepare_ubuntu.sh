@@ -53,12 +53,8 @@ chown -R admin:admin /home/admin/.ssh
 # create static folders
 ###############################################################################
 
-mkdir -p /srv
 for d in assets media; do
     mkdir -p /var/www/$d
-    if [ ! -e /srv/$d ]; then
-        ln -s /var/www/$d /srv/$d
-    fi
 done
 
 chown admin:admin /var/www/assets

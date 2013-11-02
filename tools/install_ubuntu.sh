@@ -24,29 +24,30 @@ pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
 devpi_version="1.1"
 devpi_port=3131
 devpi_datadir="/var/devpi"
-venv_root="/srv/python$pyversion"
-eggs_root="$venv_root/.eggs"
-server_root="$venv_root/var/devpi/$devpi_version"
+install_root="/opt"
+venv_root="$install_root/python$pyversion"
+eggs_root="$install_root/.eggs"
+server_root="$venv_root/src/devpi/$devpi_version"
 
-set +e
-service devpi-server status > /dev/null 2>&1
-if [ $? -eq  1 ]; then
-    echo ":: installing devpi-server"
-    #create a virtualenv at $venv_root
-    if [ ! -e "$venv_root" ]; then
-        virtualenv "$venv_root"
-    fi
+mkdir -p $install_root
+mkdir -p $eggs_root
 
-    mkdir -p $eggs_root
+echo ":: installing devpi-server"
+#create a virtualenv at $venv_root
+if [ ! -e "$venv_root" ]; then
+    virtualenv "$venv_root"
+fi
 
-    rm -rf $server_root
-    mkdir -p $venv_root/var/devpi
-    rm -rf devpi-installer-master
-    wget -O devpi-installer.zip https://github.com/averagehuman/devpi-installer/archive/master.zip
-    unzip devpi-installer.zip
-    mv devpi-installer-master $server_root
+mkdir -p $eggs_root
 
-    cat > $server_root/base.cfg <<EOF
+rm -rf $server_root
+mkdir -p $venv_root/src/devpi
+rm -rf devpi-installer-master
+wget -O devpi-installer.zip https://github.com/averagehuman/devpi-installer/archive/master.zip
+unzip devpi-installer.zip
+mv devpi-installer-master $server_root
+
+cat > $server_root/base.cfg <<EOF
 
 [buildout]
 eggs-directory = $eggs_root
@@ -62,27 +63,22 @@ refresh=60
 bypass_cdn=0
 secretfile=.secret
 serverdir=$devpi_datadir
-aliasdir=/srv/devpi-server
+aliasdir=$install_root/devpi-server
 user=devpi
 group=devpi
 
 EOF
 
-    cd $server_root && make deploy
+cd $server_root && make install
 
-    cp $server_root/etc/devpi.upstart /etc/init/devpi-server.conf
-
-    if [ ! -e /srv/devpi-server ]; then
-        ln -s $server_root /srv/devpi-server
-    fi
-
-    chown -R admin:admin $venv_root
-    chown -R devpi:devpi $venv_root/var/devpi
-    chown -R devpi:devpi $devpi_datadir
-
+if [ ! -e $install_root/devpi-server ]; then
+    ln -s $server_root $install_root/devpi-server
 fi
 
-set -e
+chown -R admin:admin $venv_root
+chown -R devpi:devpi $venv_root/src/devpi
+chown -R devpi:devpi $devpi_datadir
+
 
 ###############################################################################
 # buildout/pip support
