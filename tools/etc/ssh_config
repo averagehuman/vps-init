@@ -1,0 +1,4 @@
+
+Host github.com codebasehq.com
+IdentityFile ~/.ssh/server-admin.key
+
