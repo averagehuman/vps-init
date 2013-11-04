@@ -21,7 +21,7 @@ fi
 # install devpi-server
 ###############################################################################
 pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
-devpi_version="1.1"
+devpi_version="1.2"
 devpi_port=3131
 devpi_datadir="/var/devpi"
 install_root="/opt"
