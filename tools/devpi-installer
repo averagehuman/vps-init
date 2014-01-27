@@ -92,6 +92,11 @@ EOF
 ###############################################################################
 cd $server_root && make install
 
+if [ $? -gt 0 ]; then
+    echo "install failed"
+    exit 1
+fi
+
 if [ -h /etc/devpi-server ]; then
     rm /etc/devpi-server
 fi
