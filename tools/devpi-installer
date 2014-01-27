@@ -30,11 +30,10 @@
 set -e
 
 pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
-devpi_version="1.1"
 devpi_port=3131
 devpi_datadir="/var/devpi"
 venv_root="/opt/python$pyversion"
-server_root="$venv_root/src/devpi/$devpi_version"
+server_root="$venv_root/src/devpi"
 
 ###############################################################################
 # create app user 
@@ -73,7 +72,6 @@ rm -rf $tmpdir
 cat > $server_root/base.cfg <<EOF
 
 [cfg]
-version = $devpi_version
 host=localhost
 port=$devpi_port
 outside_url=
@@ -114,11 +112,11 @@ cat <<EOF
 
 *******************************************************************************
 *******************************************************************************
-* SUCCESS!
+*                               SUCCESS!                                      *
 *******************************************************************************
 *******************************************************************************
 
-devpi-server v$devpi_version has been installed. Start it with
+devpi-server has been installed. Start it with
 
     supervisorctl reread && supervisorctl update
 
