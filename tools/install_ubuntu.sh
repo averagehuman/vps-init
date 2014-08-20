@@ -1,89 +1,111 @@
 #!/bin/sh
 
+###############################################################################
+#
+# Provisioning for a typical web server running on Ubuntu 12.04 - 14.04
+#
+###############################################################################
+
+
 set -e
 
 pg_version="9.1"
-home=$(pwd)
-
 
 ###############################################################################
-# install orb (virtualenv utility)
+# oracle java ppa
 ###############################################################################
-if [ -e etc/orb ]; then
-    echo ":: installing orb utility to /usr/local/bin/orb"
-    if [ -e /usr/local/bin/orb ]; then
-        cp /usr/local/bin/orb /usr/local/bin/_orb
-    fi
-    cp etc/orb /usr/local/bin
-fi
+add-apt-repository -y ppa:webupd8team/java
+
+###############################################################################
+# docker ppa
+###############################################################################
+apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list
+
+###############################################################################
+# varnish ppa
+###############################################################################
+#if [ -z "$(grep 'varnish-3.0' /etc/apt/sources.list)" ]; then
+#    curl http://repo.varnish-cache.org/debian/GPG-key.txt | apt-key add -
+#    echo "deb http://repo.varnish-cache.org/ubuntu/ precise varnish-3.0" | tee -a /etc/apt/sources.list
+#fi
+
+apt-get -y update
+apt-get -y dist-upgrade
+apt-get -y install build-essential apt-transport-https
+apt-get -y install unattended-upgrades python-software-properties
+apt-get -y install postgresql libpq-dev
+apt-get -y install python-dev
+apt-get -y install vim git-core ufw unzip
+apt-get -y install memcached supervisor
+
+apt-get -y install lxc-docker
+apt-get -y install oracle-java7-installer
+
+apt-get -y clean
+
+###############################################################################
+# get more recent setuptools, pip and virtualenv than system defaults
+###############################################################################
+# use default easy_install to install latest pip
+apt-get -y install python-setuptools
+easy_install pip
+# remove default setuptools
+apt-get -y remove python-setuptools
+# get latest setuptools
+pip install -U setuptools
+# get latest virtualenv
+pip install -U virtualenv
+# install orb
+pip install -U orb
+
 
 ###############################################################################
 # install devpi-server
 ###############################################################################
 pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
-devpi_version="1.2"
 devpi_port=3131
-devpi_datadir="/var/devpi"
 install_root="/opt"
-venv_root="$install_root/python$pyversion"
+install_parent="/opt/python$pyversion"
 eggs_root="$install_root/.eggs"
-server_root="$venv_root/src/devpi/$devpi_version"
+venv_root="$install_parent/devpi.env"
+data_root="/var/opt/devpi"
 
-mkdir -p $install_root
 mkdir -p $eggs_root
+mkdir -p $install_parent
+
 
 echo ":: installing devpi-server"
 #create a virtualenv at $venv_root
 if [ ! -e "$venv_root" ]; then
-    virtualenv "$venv_root"
+    orb init "$venv_root"
 fi
 
-mkdir -p $eggs_root
-
-rm -rf $server_root
-mkdir -p $venv_root/src/devpi
-rm -rf devpi-installer-master
-wget -O devpi-installer.zip https://github.com/averagehuman/devpi-installer/archive/master.zip
-unzip devpi-installer.zip
-mv devpi-installer-master $server_root
-
-cat > $server_root/base.cfg <<EOF
-
-[buildout]
-eggs-directory = $eggs_root
-
-[cfg]
-version = $devpi_version
-host=localhost
-port=$devpi_port
-outside_url=
-bottleserver=auto
-debug=0
-refresh=60
-bypass_cdn=0
-secretfile=.secret
-serverdir=$devpi_datadir
-aliasdir=$install_root/devpi-server
-user=devpi
-group=devpi
-
-EOF
-
-cd $server_root && make install
-
-if [ ! -e $install_root/devpi-server ]; then
-    ln -s $server_root $install_root/devpi-server
-fi
+pushd $venv_root
+orb install -U devpi-server
+popd
 
 chown -R admin:admin $venv_root
-chown -R devpi:devpi $venv_root/src/devpi
-chown -R devpi:devpi $devpi_datadir
+chown -R devpi:devpi $data_root
+
+cat > /etc/supervisor/devpi-server.conf <<EOF
+
+[program:devpi-server]
+command = ${venv_root}/bin/devpi-server --host=localhost --port=${devpi_port} --serverdir=${data_root} --refresh=60
+priority = 999
+startsecs = 5
+redirect_stderr = True
+autostart = True
+autorestart = True
+user = devpi
+process_name = devpi-server
+
+EOF
 
 
 ###############################################################################
 # buildout/pip support
 ###############################################################################
-cd $home
 index_url="http://localhost:$devpi_port/root/pypi/+simple/"
 
 mkdir -p /home/admin/.buildout
@@ -111,7 +133,6 @@ chown -R admin:admin /home/admin/.pip
 ###############################################################################
 # create postgres superuser 'admin' for peer authentication
 ###############################################################################
-cd $home
 echo ":: creating postgres superuser"
 #password=$(< /dev/urandom tr -dc A-Za-z0-9 | head -c30)
 exists=$(su postgres -c "psql -tqc \"SELECT count(1) FROM pg_catalog.pg_user WHERE usename = 'admin'\"")
@@ -129,7 +150,6 @@ passwd -l postgres
 ###############################################################################
 # update postgres config
 ###############################################################################
-cd $home
 echo ":: updating postgres config"
 
 # use our own pg_hba.conf (peer authentication for admin user, md5 for local connections)

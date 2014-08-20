@@ -99,33 +99,14 @@ EOF
 
 chmod 440 /etc/sudoers
 
-###############################################################################
-# add varnish ppa
-###############################################################################
-#if [ -z "$(grep 'varnish-3.0' /etc/apt/sources.list)" ]; then
-#    curl http://repo.varnish-cache.org/debian/GPG-key.txt | apt-key add -
-#    echo "deb http://repo.varnish-cache.org/ubuntu/ precise varnish-3.0" | tee -a /etc/apt/sources.list
-#fi
 
 ###############################################################################
-# apt-get package update
+# docker needs 3.8 kernel (and restart)
 ###############################################################################
 apt-get -y update
-apt-get -y dist-upgrade
-apt-get -y install linux-headers-$(uname -r) build-essential
-apt-get -y install unattended-upgrades python-software-properties
-apt-get -y install postgresql libpq-dev
-apt-get -y install python-dev
-apt-get -y install vim git-core ufw unzip
-apt-get -y install memcached
-apt-get -y clean
-
-###############################################################################
-# oracle java
-###############################################################################
-add-apt-repository -y ppa:webupd8team/java
-apt-get -y update
-apt-get -y install oracle-java7-installer
+if [ "$(lsb_release -r | awk '{ print $2 }')" = "12.04" ]; then
+    apt-get install linux-image-generic-lts-raring linux-headers-generic-lts-raring
+fi
 
 ###############################################################################
 # configure unattended system upgrades
@@ -133,19 +114,6 @@ apt-get -y install oracle-java7-installer
 cp etc/50unattended-upgrades /etc/apt/apt.conf.d/
 chown root:root /etc/apt/apt.conf.d/50unattended-upgrades
 chmod 644 /etc/apt/apt.conf.d/50unattended-upgrades
-
-###############################################################################
-# get more recent setuptools, pip and virtualenv than system defaults
-###############################################################################
-# use default easy_install to install latest pip
-apt-get -y install python-setuptools
-easy_install pip
-# get latest setuptools
-pip install -U setuptools
-# remove default setuptools
-apt-get -y remove python-setuptools
-# get latest virtualenv
-pip install virtualenv
 
 ###############################################################################
 # enable ufw
@@ -156,6 +124,7 @@ sed -i.orig -e "s/^Port .*/Port $sshport/g" /etc/ssh/sshd_config
 ufw default deny incoming
 ufw allow http
 ufw allow $sshport
+sed -i.orig -e 's/DEFAULT_FORWARD_POLICY=.*/DEFAULT_FORWARD_POLICY="ACCEPT"/' /etc/default/ufw
 ufw enable
 
 echo "CHANGED SSH PORT: $sshport (restart to take effect)"
