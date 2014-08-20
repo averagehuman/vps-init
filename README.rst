@@ -13,19 +13,21 @@ Prepare Remote Host
 
        [local] $ ssh root@<IP-ADDRESS>
 
-2. If there are no zipped public/private key pairs present, or you want to
-   replace the ones that are here, run::
+2. If there are no public/private key pairs present, or you want to replace the
+   ones that are here, run::
 
-       [local] $ ./keygen
+       [local] $ ./keygen <SERVER-ID>
 
-   This will create two sets of keys - one for you the deployer which will stay
-   on the local machine, and one for a generic ``admin`` user on the remote host.
-   The keys will be zipped and password-encrypted as a basic security mechanism
-   to prevent at least the keys being added to source control as plaintext.
+   where <SERVER-ID> is an identifier for the server that you are provisioning,
+   for example, it may be the server hostname or IP. This will create two sets
+   of keys - one for you the deployer which will stay on the local machine, and
+   one for a generic ``admin`` user on the remote host.  You will be asked for a
+   a passphrase - this passphrase will be used for the creation of both keys
+   and, as a basic security mechanism, to encrypt the zip file containing the
+   keys.
 
    TIP: you can include a ``.passphrase`` file in the same directory as
-   ``keygen`` rather than typing and repeating at the console. The passphrase
-   for the keys is used to also encrypt/decrypt the zip files.
+   ``keygen`` rather than typing and repeating at the console.
 
 3. Run the ``inithost`` script::
 

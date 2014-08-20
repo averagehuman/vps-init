@@ -1,9 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
-dir1=keys/server-admin-keys
-dir2=keys/deployer-keys
+servername="${1:-server}"
+
+dir1=keys/${servername}-admin-keys
+dir2=keys/${servername}-deployer-keys
 reply1=""
 reply2=""
 reply3=""
@@ -11,6 +13,7 @@ comment1="server admin key - copy public/private pair to remote host and public 
 comment2="deployer key - copy public/private pair to local .ssh directory and public key to remote authorized_keys file"
 pass1=""
 pass2=""
+
 
 for d in $dir1 $dir2; do
     if [ -e $d ]; then
@@ -51,7 +54,7 @@ ensure_passphrase () {
 
 ensure_passphrase
 
-adminkey="$HOME/.ssh/server-admin.key"
+adminkey="$HOME/.ssh/${servername}-admin.key"
 if [ -e $adminkey ] && [ -e $adminkey.pub ]; then
     until [ "$reply1" = "y" ] || [ "$reply1" = "n" ]; do
         echo -n "Use existing key '$adminkey'? (y/n) "
@@ -63,11 +66,11 @@ if [ -e $adminkey ] && [ -e $adminkey.pub ]; then
     fi
 fi
 
-if [ ! -e $dir1/server-admin.key ]; then
-    ssh-keygen -q -C "$comment1" -f $dir1/server-admin.key -P "$pass1"
+if [ ! -e $dir1/${servername}-admin.key ]; then
+    ssh-keygen -q -C "$comment1" -f $dir1/${servername}-admin.key -P "$pass1"
 fi
 
-deployerkey="$HOME/.ssh/deployer.key"
+deployerkey="$HOME/.ssh/${servername}-deployer.key"
 if [ -e $deployerkey ] && [ -e $deployerkey.pub ]; then
     until [ "$reply2" = "y" ] || [ "$reply2" = "n" ]; do
         echo -n "Use existing key '$deployerkey'? (y/n) "
@@ -79,15 +82,15 @@ if [ -e $deployerkey ] && [ -e $deployerkey.pub ]; then
     fi
 fi
 
-if [ ! -e $dir2/deployer.key ]; then
-    ssh-keygen -q -C "$comment2" -f $dir2/deployer.key -P "$pass1"
+if [ ! -e $dir2/${servername}-deployer.key ]; then
+    ssh-keygen -q -C "$comment2" -f $dir2/${servername}-deployer.key -P "$pass1"
 fi
 
-cp $dir2/deployer.key.pub tools/etc/authorized_keys
+cp $dir2/${servername}-deployer.key.pub tools/etc/authorized_keys
 
 set +e
 sync=0
-for user in server-admin deployer; do
+for user in ${servername}-admin ${servername}-deployer; do
     # cmp returns 1 for 'files are different', 2 for 'problem', otherwise 0
     cmp $HOME/.ssh/$user.key keys/$user-keys/$user.key > /dev/null 2>&1
     sync=$? || $sync
@@ -102,7 +105,7 @@ if [ $sync -gt 0 ]; then
         read reply3
     done
     if [ "$reply3" = "y" ]; then
-        for user in server-admin deployer; do
+        for user in ${servername}-admin ${servername}-deployer; do
             cp keys/$user-keys/$user.key $HOME/.ssh/$user.key
             cp keys/$user-keys/$user.key.pub $HOME/.ssh/$user.key.pub
         done
@@ -110,7 +113,7 @@ if [ $sync -gt 0 ]; then
 fi
 
 cd keys
-for user in server-admin deployer; do
+for user in ${servername}-admin ${servername}-deployer; do
     if [ -e $user-keys.zip ]; then
         mv $user-keys.zip $user-keys.old.zip
     fi
