@@ -86,7 +86,7 @@ if [ ! -e $dir2/${servername}-deployer.key ]; then
     ssh-keygen -q -C "$comment2" -f $dir2/${servername}-deployer.key -P "$pass1"
 fi
 
-cp $dir2/${servername}-deployer.key.pub tools/etc/authorized_keys
+cp $dir2/${servername}-deployer.key.pub keys/authorized_keys
 
 set +e
 sync=0

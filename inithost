@@ -47,14 +47,17 @@ mkdir build
 cp tools/prepare_ubuntu.sh build/server-init
 cp tools/install_ubuntu.sh build/server-install
 cp -r tools/etc build
-if [ -e keys/server-admin-keys.zip ]; then
+if [ -f keys/authorized_keys ]; then
+    cp keys/authorized_keys build
+fi
+if [ -f keys/*-admin-keys.zip ]; then
     reply=
     until [ "$reply" = "y" ] || [ "$reply" = "n" ]; do
         echo -n "Copy server admin keys to remote host? (Answer 'n' if using Agent Forwarding) [y/n] "
         read reply
     done
     if [ "$reply" = "y" ]; then
-        cp keys/server-admin-keys.zip build
+        cp keys/*-admin-keys.zip build
     fi
 fi
 
