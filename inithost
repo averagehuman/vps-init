@@ -48,7 +48,7 @@ cp tools/prepare_ubuntu.sh build/server-init
 cp tools/install_ubuntu.sh build/server-install
 cp -r tools/etc build
 if [ -f keys/authorized_keys ]; then
-    cp keys/authorized_keys build
+    cp keys/authorized_keys build/etc
 fi
 if [ -f keys/*-admin-keys.zip ]; then
     reply=
@@ -73,7 +73,7 @@ rm -rf build
 
 #copy to remote server
 echo ":: copying files to host"
-scp -P $port prepare_ubuntu.tgz root@$host:~
+scp -P $port prepare_ubuntu.tgz root@$ip:~
 rm -rf prepare_ubuntu.tgz
 
 
