@@ -2,7 +2,7 @@
 
 set -e
 
-servername="${1:-server}"
+servername="${1:-GENERIC}"
 
 dir1=keys/${servername}-admin-keys
 dir2=keys/${servername}-deployer-keys
