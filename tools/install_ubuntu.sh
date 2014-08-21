@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ###############################################################################
 #
@@ -8,8 +8,6 @@
 
 
 set -e
-
-pg_version="9.1"
 
 ###############################################################################
 # oracle java ppa
@@ -73,6 +71,7 @@ data_root="/var/opt/devpi"
 
 mkdir -p $eggs_root
 mkdir -p $install_parent
+mkdir -p $data_root
 
 
 echo ":: installing devpi-server"
@@ -88,7 +87,7 @@ popd
 chown -R admin:admin $venv_root
 chown -R devpi:devpi $data_root
 
-cat > /etc/supervisor/devpi-server.conf <<EOF
+cat > /etc/supervisor/conf.d/devpi-server.conf <<EOF
 
 [program:devpi-server]
 command = ${venv_root}/bin/devpi-server --host=localhost --port=${devpi_port} --serverdir=${data_root} --refresh=60
@@ -135,13 +134,13 @@ chown -R admin:admin /home/admin/.pip
 ###############################################################################
 echo ":: creating postgres superuser"
 #password=$(< /dev/urandom tr -dc A-Za-z0-9 | head -c30)
-exists=$(su postgres -c "psql -tqc \"SELECT count(1) FROM pg_catalog.pg_user WHERE usename = 'admin'\"")
+exists=$(su - postgres -c "psql -tqc \"SELECT count(1) FROM pg_catalog.pg_user WHERE usename = 'admin'\"")
 if [ $exists = 0 ]; then
-    su postgres -c "createuser -s admin"
+    su - postgres -c "createuser -s admin"
 fi
-exists=$(su postgres -c "psql -lqt | cut -d \| -f 1 | grep -w admin | wc -l")
+exists=$(su - postgres -c "psql -lqt | cut -d \| -f 1 | grep -w admin | wc -l")
 if [ $exists = 0 ]; then
-    su postgres -c "createdb -O admin admin"
+    su - postgres -c "createdb -O admin admin"
 fi
 
 # lock postgres account (use the just created superuser instead)
@@ -151,6 +150,8 @@ passwd -l postgres
 # update postgres config
 ###############################################################################
 echo ":: updating postgres config"
+
+pg_version="$(psql --version | awk -F ' ' 'NR==1{ print $3 }' | awk -F '.' '{ print $1"."$2 }')"
 
 # use our own pg_hba.conf (peer authentication for admin user, md5 for local connections)
 cp etc/pg_hba.conf /etc/postgresql/$pg_version/main/pg_hba.conf
