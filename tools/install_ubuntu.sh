@@ -34,7 +34,7 @@ apt-get -y install build-essential apt-transport-https
 apt-get -y install unattended-upgrades python-software-properties
 apt-get -y install postgresql libpq-dev
 apt-get -y install python-dev
-apt-get -y install vim git-core ufw unzip
+apt-get -y install vim git-core unzip
 apt-get -y install memcached supervisor
 
 apt-get -y install lxc-docker

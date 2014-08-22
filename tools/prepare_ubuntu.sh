@@ -111,15 +111,20 @@ fi
 ###############################################################################
 # configure unattended system upgrades
 ###############################################################################
+cp etc/10periodic /etc/apt/apt.conf.d/
 cp etc/50unattended-upgrades /etc/apt/apt.conf.d/
 chown root:root /etc/apt/apt.conf.d/50unattended-upgrades
 chmod 644 /etc/apt/apt.conf.d/50unattended-upgrades
+chown root:root /etc/apt/apt.conf.d/10periodic
+chmod 644 /etc/apt/apt.conf.d/10periodic
 
 ###############################################################################
 # enable ufw
 ###############################################################################
 sshport=$(python -c "from random import randint; print randint(10000,30000)")
 sed -i.orig -e "s/^Port .*/Port $sshport/g" /etc/ssh/sshd_config
+
+apt-get -y install ufw
 
 ufw default deny incoming
 ufw allow http
