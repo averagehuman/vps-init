@@ -36,7 +36,6 @@ fi
 
 passwd -l www
 passwd -l devpi
-passwd -l docker
 
 ###############################################################################
 # ssh key setup
