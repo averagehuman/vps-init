@@ -3,7 +3,8 @@ vps-init
 ========
 
 A collection of scripts for initially provisioning a single remote Ubuntu
-server prior to installing a web application. (ubuntu version 12.04)
+server prior to installing a web application. (Tested on Ubuntu 12.04 LTS and
+Ubuntu 14.04 LTS)
 
 Prepare Remote Host
 -------------------
