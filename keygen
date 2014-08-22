@@ -101,7 +101,7 @@ set -e
 
 if [ $sync -gt 0 ]; then
     until [ "$reply3" = "y" ] || [ "$reply3" = "n" ]; do
-        echo -n "Copy new keys to local '$HOME/.ssh', overwriting if necessary? (y/n) "
+        echo -n "Copy new '${servername}' keys to local '$HOME/.ssh', overwriting if necessary? (y/n) "
         read reply3
     done
     if [ "$reply3" = "y" ]; then
