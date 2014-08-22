@@ -41,6 +41,7 @@ apt-get -y install lxc-docker
 apt-get -y install oracle-java7-installer
 
 apt-get -y clean
+apt-get -y autoremove
 
 ###############################################################################
 # get more recent setuptools, pip and virtualenv than system defaults
