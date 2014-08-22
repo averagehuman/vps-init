@@ -118,3 +118,27 @@ Prepare Remote Host
    ``/home/admin/.ssh/<SERVER-ID>-admin.key`` exists.
 
 
+server-init
+-----------
+
++ Create user ``admin``
++ Create system user ``www``
++ Create system user ``devpi``
++ Setup ``ssh`` keys for ``admin``
++ Replace default ``sudoers`` file
++ Setup unattended upgrades
++ Change ssh server port to random high number
++ Install and enable ufw
+
+
+server-install
+--------------
+
++ Install postgres, python-dev, build-essential, memcached, supervisor, ...
++ Install java
++ Install docker
++ Install setuptools, pip, virtualenv, orb
++ Install devpi-server instance, managed with supervisor
++ Create postgres superuser 'admin' for peer-authentication
++ Update postgres config - pg_hba.conf
+
