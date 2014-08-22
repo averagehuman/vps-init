@@ -47,9 +47,9 @@ Prepare Remote Host
 
    (where <PORT> here is the remote port on which SSH is running, default is 22).
    
-   This will create a tar file ``prepare_ubuntu.tgz`` and ``scp`` it to the remote host.
-   The tar file contains two provisioning scripts ``server-init``  and ``server-install``
-   along with other utilities.
+   This will create a tar file ``prepare_ubuntu.tgz`` and ``scp`` it to the
+   remote host. The tar file contains a provisioning script ``init-server``
+   together with a number of support files.
    
 4. ssh to the server and untar the file::
 
@@ -57,7 +57,7 @@ Prepare Remote Host
 
    and run the the init script::
 
-       [remote] $ ./server-init
+       [remote] $ ./init-server
 
    Among other things, this will create the ``admin`` user and end by updating
    the ``sshd`` config.
