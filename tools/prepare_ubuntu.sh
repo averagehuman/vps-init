@@ -9,8 +9,9 @@ set -e
 groupadd -r -f admin
 groupadd -r -f www
 groupadd -r -f devpi
+groupadd -r -f docker
 if [ ! $(grep '^admin:' /etc/passwd) ]; then
-    useradd -r -m -s /bin/bash -g admin -G www,devpi admin
+    useradd -r -m -s /bin/bash -g admin -G www,devpi,docker admin
 fi
 if [ ! $(grep '^www:' /etc/passwd) ]; then
     useradd -r -M -s /bin/false -d /nonexistent -g www www
@@ -35,6 +36,7 @@ fi
 
 passwd -l www
 passwd -l devpi
+passwd -l docker
 
 ###############################################################################
 # ssh key setup

@@ -44,8 +44,7 @@ fi
 # tar files
 rm -rf build
 mkdir build
-cp tools/prepare_ubuntu.sh build/server-init
-cp tools/install_ubuntu.sh build/server-install
+cp tools/install_ubuntu.sh build/server-init
 cp -r tools/etc build
 if [ -f keys/authorized_keys ]; then
     cp keys/authorized_keys build/etc
