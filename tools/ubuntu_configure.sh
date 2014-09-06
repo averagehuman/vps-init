@@ -122,8 +122,8 @@ chmod 644 /etc/apt/apt.conf.d/10periodic
 ###############################################################################
 # oracle java ppa
 ###############################################################################
-add-apt-repository -y ppa:webupd8team/java
-echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
+#add-apt-repository -y ppa:webupd8team/java
+#echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
 
 ###############################################################################
 # docker ppa
@@ -149,7 +149,7 @@ apt-get -y install vim git-core unzip
 apt-get -y install memcached supervisor ufw
 
 apt-get -y install lxc-docker
-apt-get -y install oracle-java7-installer
+#apt-get -y install oracle-java7-installer
 
 apt-get -y clean
 apt-get -y autoremove
@@ -173,16 +173,14 @@ pip install -U orb
 ###############################################################################
 # install devpi-server
 ###############################################################################
-pyversion=$(python -c "import sys;print('%s.%s' % sys.version_info[:2])")
 devpi_port=3131
 install_root="/opt"
-install_parent="/opt/python$pyversion"
 eggs_root="$install_root/.eggs"
-venv_root="$install_parent/devpi.env"
+venv_root="$install_root/devpi-server"
 data_root="/var/opt/devpi"
 
+mkdir -p $install_root
 mkdir -p $eggs_root
-mkdir -p $install_parent
 mkdir -p $data_root
 
 
@@ -195,9 +193,6 @@ fi
 pushd $venv_root
 orb install -U devpi-server
 popd
-
-chown -R admin:admin $venv_root
-chown -R devpi:devpi $data_root
 
 cat > /etc/supervisor/conf.d/devpi-server.conf <<EOF
 
@@ -214,13 +209,10 @@ process_name = devpi-server
 EOF
 
 
-###############################################################################
-# buildout/pip support
-###############################################################################
 index_url="http://localhost:$devpi_port/root/pypi/+simple/"
 
+# buildout config
 mkdir -p /home/admin/.buildout
-mkdir -p /home/admin/.pip
 
 cat > /home/admin/.buildout/default.cfg <<EOF
 
@@ -230,6 +222,8 @@ index = $index_url
 
 EOF
 
+# pip config
+mkdir -p /home/admin/.pip
 cat > /home/admin/.pip/pip.conf <<EOF
 
 [global]
@@ -237,6 +231,8 @@ index-url = $index_url
 
 EOF
 
+chown -R devpi:devpi $data_root
+chown -R admin:admin $venv_root
 chown -R admin:admin $eggs_root
 chown -R admin:admin /home/admin/.buildout
 chown -R admin:admin /home/admin/.pip
@@ -255,7 +251,7 @@ if [ $exists = 0 ]; then
     su - postgres -c "createdb -O admin admin"
 fi
 
-# lock postgres account (use the just created superuser instead)
+# lock postgres system account (use the just created superuser instead)
 passwd -l postgres
 
 ###############################################################################
