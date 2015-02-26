@@ -4,14 +4,10 @@
 # create docker group
 ###############################################################################
 groupadd -r -f admin
-groupadd -r -f -g $WORKER_DEFAULT_UID $WORKER_DEFAULT
 groupadd -r -f devpi
 groupadd -r -f docker
 if [ ! $(grep '^admin:' /etc/passwd) ]; then
-    useradd -r -m -s /bin/bash -g admin -G staff,$WORKER_DEFAULT,devpi,docker admin
-fi
-if [ ! $(grep '^$WORKER_DEFAULT:' /etc/passwd) ]; then
-    useradd -r -M -s /usr/sbin/nologin -d /nonexistent -u $WORKER_DEFAULT_UID -g $WORKER_DEFAULT $WORKER_DEFAULT
+    useradd -r -m -s /bin/bash -g admin -G staff,devpi,docker admin
 fi
 if [ ! $(grep '^devpi:' /etc/passwd) ]; then
     useradd -r -M -s /usr/sbin/nologin -d /nonexistent -g devpi devpi
@@ -31,7 +27,6 @@ else
     passwd -l admin
 fi
 
-passwd -l $WORKER_DEFAULT
 passwd -l devpi
 
 ###############################################################################
@@ -46,24 +41,6 @@ if [ -e server-admin-keys.zip ]; then
     rm -rf server-admin-keys
 fi
 chown -R admin:admin /home/admin/.ssh
-
-###############################################################################
-# create shared directory for communication between processes
-###############################################################################
-
-mkdir -p /var/run/$WORKER_DEFAULT-shared
-
-###############################################################################
-# create static folders
-###############################################################################
-
-for d in assets media; do
-    mkdir -p /srv/www/$d
-done
-
-chown admin:admin /srv/www/assets
-chown $WORKER_DEFAULT:admin /srv/www/media
-chmod 775 /srv/www/media
 
 
 ###############################################################################
@@ -102,6 +79,7 @@ EOF
 
 chmod 440 /etc/sudoers
 
+export DEBIAN_FRONTEND=noninteractive
 
 ###############################################################################
 # docker needs 3.8 kernel (and restart)
@@ -133,7 +111,7 @@ apt-get -y install libfreetype6 libfreetype6-dev libreadline6-dev
 apt-get -y install liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python-tk
 
 apt-get -y install vim git-core unzip
-apt-get -y install memcached supervisor ufw pound
+apt-get -y install memcached supervisor ufw
 
 
 ###############################################################################
