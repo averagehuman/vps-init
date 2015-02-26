@@ -33,5 +33,6 @@ Makefile
 .passphrase
 base.cfg
 *.zip
-tools/etc/authorized_keys
+authorized_keys
+keys
 

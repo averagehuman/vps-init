@@ -5,15 +5,29 @@ set -e
 host="$1"
 
 if [ ! "$host" ]; then
-    echo "host required, eg. inithost 10.10.10.10"
+    echo "host required."
+	echo "eg. inithost 10.10.10.10"
+	echo "eg. inithost 10.10.10.10:2222"
+	echo "eg. inithost username@10.10.10.10:2222"
     exit 1
 fi
-ip=$(echo "$host" | sed "s/:.*//")
+user=$(echo "$host" | sed -e "s/@.*//" -e "s/:.*//")
+ip=$(echo "$host" | sed -e "s/.*@//" -e "s/:.*//")
 port=$(echo "$host" | sed "s/.*://")
+
+
+if [ "$user" = "$ip" ]; then
+    user=root
+fi
 
 if [ "$port" = "$host" ]; then
     port=22
 fi
+
+
+postgres_port=7274
+devpi_port=3131
+memcached_port=12321
 
 pass1=""
 pass2=""
@@ -41,13 +55,57 @@ if [ "$pass1" != "" ]; then
     fi
 fi
 
+postgres=
+docker=
+devpi=
+
+postgres=
+until [ "$postgres" = "y" ] || [ "$postgres" = "n" ]; do
+	echo -n "Install postgres? [y/n] "
+	read postgres
+done
+
+devpi=
+until [ "$devpi" = "y" ] || [ "$devpi" = "n" ]; do
+	echo -n "Install devpi-server (pypi caching proxy)? [y/n] "
+	read devpi
+done
+
+docker=
+until [ "$docker" = "y" ] || [ "$docker" = "n" ]; do
+	echo -n "Install docker? [y/n] "
+	read docker
+done
+
 # tar files
-rm -rf build
-mkdir build
-cp tools/ubuntu_configure.sh build/init-server
-cp -r tools/etc build
+build_root="vps-init-ubuntu"
+rm -rf $build_root
+mkdir -p $build_root
+
+cp ubuntu/prologue.sh $build_root/init-server.tmp
+echo "memcached_port=$memcached_port" >> $build_root/init-server.tmp
+
+parts="ubuntu/core.sh"
+if [ $postgres = "y" ]; then
+	echo "postgres_port=$postgres_port" >> $build_root/init-server.tmp
+	parts="$parts ubuntu/postgres.sh";
+fi
+if [ $devpi = "y" ]; then
+	echo "devpi_port=$devpi_port" >> $build_root/init-server.tmp
+	parts="$parts ubuntu/devpi.sh";
+fi
+if [ $docker = "y" ]; then parts="$parts ubuntu/docker.sh"; fi
+
+cat $build_root/init-server.tmp $parts > $build_root/init-server
+rm $build_root/init-server.tmp
+
+cp ubuntu/postinstall.sh $build_root/postinstall
+chmod +x $build_root/init-server
+chmod +x $build_root/postinstall
+
+cp -r ubuntu/etc $build_root
 if [ -f keys/authorized_keys ]; then
-    cp keys/authorized_keys build/etc
+    cp keys/authorized_keys $build_root/etc
 fi
 if [ -f keys/*-admin-keys.zip ]; then
     reply=
@@ -56,23 +114,20 @@ if [ -f keys/*-admin-keys.zip ]; then
         read reply
     done
     if [ "$reply" = "y" ]; then
-        cp keys/*-admin-keys.zip build
+        cp keys/*-admin-keys.zip $build_root
     fi
 fi
 
 if [ -e .adminpass ]; then
-    cp .adminpass build
+    cp .adminpass $build_root
 fi
 
-cd build
-tar -czvf prepare_ubuntu.tgz *
-cd ..
-mv build/prepare_ubuntu.tgz .
-rm -rf build
+tar -czvf vps-init-ubuntu.tgz $build_root
+rm -rf $build_root
 
 #copy to remote server
 echo ":: copying files to host"
-scp -P $port prepare_ubuntu.tgz root@$ip:~
-rm -rf prepare_ubuntu.tgz
+scp -P $port vps-init-ubuntu.tgz $ip:~
+rm -rf vps-init-ubuntu.tgz
 
 
