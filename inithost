@@ -17,7 +17,7 @@ port=$(echo "$host" | sed "s/.*://")
 
 
 if [ "$user" = "$ip" ]; then
-    user=root
+    user="root"
 fi
 
 if [ "$port" = "$host" ]; then
@@ -58,23 +58,38 @@ fi
 postgres=
 docker=
 devpi=
+varnish=
+java=
+es=
 
-postgres=
 until [ "$postgres" = "y" ] || [ "$postgres" = "n" ]; do
 	echo -n "Install postgres? [y/n] "
 	read postgres
 done
 
-devpi=
 until [ "$devpi" = "y" ] || [ "$devpi" = "n" ]; do
 	echo -n "Install devpi-server (pypi caching proxy)? [y/n] "
 	read devpi
 done
 
-docker=
 until [ "$docker" = "y" ] || [ "$docker" = "n" ]; do
 	echo -n "Install docker? [y/n] "
 	read docker
+done
+
+until [ "$varnish" = "y" ] || [ "$varnish" = "n" ]; do
+	echo -n "Install varnish? [y/n] "
+	read varnish
+done
+
+until [ "$java" = "y" ] || [ "$java" = "n" ]; do
+	echo -n "Install java? [y/n] "
+	read java
+done
+
+until [ "$es" = "y" ] || [ "$es" = "n" ]; do
+	echo -n "Install ElasticSearch? [y/n] "
+	read es
 done
 
 # tar files
@@ -95,6 +110,10 @@ if [ $devpi = "y" ]; then
 	parts="$parts ubuntu/devpi.sh";
 fi
 if [ $docker = "y" ]; then parts="$parts ubuntu/docker.sh"; fi
+if [ $varnish = "y" ]; then parts="$parts ubuntu/varnish.sh"; fi
+if [ $java = "y" ]; then parts="$parts ubuntu/java.sh"; fi
+if [ $es = "y" ]; then parts="$parts ubuntu/elasticsearch.sh"; fi
+parts="$parts ubuntu/epilogue.sh"
 
 cat $build_root/init-server.tmp $parts > $build_root/init-server
 rm $build_root/init-server.tmp
@@ -107,16 +126,6 @@ cp -r ubuntu/etc $build_root
 if [ -f keys/authorized_keys ]; then
     cp keys/authorized_keys $build_root/etc
 fi
-if [ -f keys/*-admin-keys.zip ]; then
-    reply=
-    until [ "$reply" = "y" ] || [ "$reply" = "n" ]; do
-        echo -n "Copy server admin keys to remote host? (Answer 'n' if using Agent Forwarding) [y/n] "
-        read reply
-    done
-    if [ "$reply" = "y" ]; then
-        cp keys/*-admin-keys.zip $build_root
-    fi
-fi
 
 if [ -e .adminpass ]; then
     cp .adminpass $build_root
@@ -127,7 +136,7 @@ rm -rf $build_root
 
 #copy to remote server
 echo ":: copying files to host"
-scp -P $port vps-init-ubuntu.tgz $ip:~
+scp -P $port vps-init-ubuntu.tgz $user@$ip:~
 rm -rf vps-init-ubuntu.tgz
 
 

@@ -106,6 +106,7 @@ apt-get -y install unattended-upgrades python-software-properties
 apt-get -y install postgresql libpq-dev
 apt-get -y install python-dev
 apt-get -y install postgresql-client libpq-dev
+apt-get -y install libpcre3 libpcre3-dev
 apt-get -y install libtiff5-dev libjpeg8-dev zlib1g-dev
 apt-get -y install libfreetype6 libfreetype6-dev libreadline6-dev
 apt-get -y install liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python-tk

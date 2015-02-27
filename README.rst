@@ -45,7 +45,12 @@ Prepare Remote Host
 
        [local] $ ./inithost <IP-ADDRESS>:<PORT>
 
-   (where <PORT> here is the remote port on which SSH is running, default is 22).
+   or::
+
+       [local] $ ./inithost <USER>@<IP-ADDRESS>:<PORT>
+
+   (where <PORT> here is the remote port on which SSH is running, default is 22,
+   and <USER> is the username of the rmeote user, default is "root".)
    
    This will create a tar file ``prepare_ubuntu.tgz`` and ``scp`` it to the
    remote host. The tar file contains a provisioning script ``init-server``
