@@ -103,7 +103,6 @@ apt-get -y update
 apt-get -y dist-upgrade
 apt-get -y install build-essential apt-transport-https
 apt-get -y install unattended-upgrades python-software-properties
-apt-get -y install postgresql libpq-dev
 apt-get -y install python-dev
 apt-get -y install postgresql-client libpq-dev
 apt-get -y install libpcre3 libpcre3-dev
@@ -134,12 +133,10 @@ pip install -U orb
 ###############################################################################
 # enable ufw
 ###############################################################################
-sshport=$(python -c "from random import randint; print randint(10000,30000)")
-sed -i.orig -e "s/^Port .*/Port $sshport/g" /etc/ssh/sshd_config
-
 ufw default deny incoming
 ufw allow http
 ufw allow $sshport
+ufw allow 2375/tcp # docker port
 sed -i.orig -e 's/DEFAULT_FORWARD_POLICY=.*/DEFAULT_FORWARD_POLICY="ACCEPT"/' /etc/default/ufw
 ufw enable
 
@@ -147,7 +144,6 @@ ufw enable
 ###############################################################################
 # configure memcached
 ###############################################################################
-
 sed -i -e 's/^p .*/p $memcached_port/' /etc/memcached.conf
 mv /etc/memcached.conf /etc/memcached_default.conf
 cp etc/local_memcached.conf /etc

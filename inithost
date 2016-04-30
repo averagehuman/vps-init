@@ -25,6 +25,7 @@ if [ "$port" = "$host" ]; then
 fi
 
 
+sshd_port=$(python -c "from random import randint; print randint(10000,30000)")
 postgres_port=7274
 devpi_port=3131
 memcached_port=12321
@@ -98,6 +99,7 @@ rm -rf $build_root
 mkdir -p $build_root
 
 cp ubuntu/prologue.sh $build_root/init-server.tmp
+echo "sshport=$sshd_port" >> $build_root/init-server.tmp
 echo "memcached_port=$memcached_port" >> $build_root/init-server.tmp
 
 parts="ubuntu/core.sh"

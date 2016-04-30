@@ -2,17 +2,15 @@
 apt-get -y clean
 apt-get -y autoremove
 
-sshport="$(grep -i -x '^Port [0-9]*' /etc/ssh/sshd_config | awk '{ print $2 }')"
-
 cat << EOF
 ###############################################################################
-######            FINISHED INSTALL - SYSTEM RESTART REQUIRED            #######
+###########         FINISHED INSTALL.  (ssh on port ${sshport})      ##########
 ###############################################################################
 
-SSH PORT = ${sshport}
-
-###############################################################################
-###############################################################################
+Rebooting in 5 seconds...
 
 EOF
+
+sleep 5
+shutdown -r now
 
